@@ -5,7 +5,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText } from './openai'
-import { initializePersistentConnection, startRecording, stopRecording, sendAudioChunk, closeConnection } from './assemblyai-persistent'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -306,9 +305,6 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  // Close Assembly AI connection
-  closeConnection()
-
   if (process.platform !== 'darwin') {
     app.quit()
   }
