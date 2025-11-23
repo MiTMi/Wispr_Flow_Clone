@@ -72,7 +72,7 @@ export async function processAudio(buffer: ArrayBuffer): Promise<string> {
     }
 }
 
-async function injectText(text: string): Promise<void> {
+export async function injectText(text: string): Promise<void> {
     return new Promise((resolve, reject) => {
         // Escape double quotes and backslashes for AppleScript string
         const safeText = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')

@@ -1,8 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
+import * as fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { uIOhook, UiohookKey } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
-import { processAudio } from './openai'
+import { processAudio, injectText } from './openai'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -80,12 +82,25 @@ app.whenReady().then(() => {
 
   // Audio Data Handler
   ipcMain.on('audio-data', async (_, buffer) => {
-    console.log('Received audio data, processing...')
     try {
-      await processAudio(buffer)
-      console.log('Audio processed and text injected.')
+      console.log('[Performance] Received audio data in main process')
+      console.time('Audio Processing')
+      const startProcessing = performance.now()
+
+      // 1. Process Audio (Transcribe) - processAudio already handles text injection
+      const text = await processAudio(buffer)
+      console.log('[Performance] Transcription complete:', text)
+      console.timeEnd('Audio Processing')
+
+      const totalTime = performance.now() - startProcessing
+      console.log(`[Performance] Total Main Process Time: ${totalTime.toFixed(2)}ms`)
+
+      // Notify renderer of completion
+      if (mainWindow) {
+        mainWindow.webContents.send('processing-complete', totalTime)
+      }
     } catch (error) {
-      console.error('Failed to process audio:', error)
+      console.error('Error processing audio:', error)
     }
   })
 
@@ -111,6 +126,7 @@ app.whenReady().then(() => {
         }
       }
     },
+    { label: 'Settings...', click: () => createSettingsWindow() },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() }
   ])
@@ -119,22 +135,165 @@ app.whenReady().then(() => {
 
   createWindow()
 
-  // Register Global Shortcut
-  globalShortcut.register('CommandOrControl+Shift+Space', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide()
-        if (process.platform === 'darwin') {
-          app.hide() // Explicitly hide app to restore focus to previous app
+  // Settings Management
+  const settingsPath = join(app.getPath('userData'), 'settings.json')
+  let settings = {
+    hotkey: 'CommandOrControl+Shift+Space',
+    triggerMode: 'toggle', // 'toggle' | 'hold'
+    holdKey: null as number | null
+  }
+
+  const loadSettings = () => {
+    try {
+      if (fs.existsSync(settingsPath)) {
+        const data = fs.readFileSync(settingsPath, 'utf-8')
+        const loaded = JSON.parse(data)
+        settings = { ...settings, ...loaded }
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+    }
+  }
+
+  const saveSettings = () => {
+    try {
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+    }
+  }
+
+  loadSettings()
+
+  // uiohook Integration
+  let isRecordingKey = false
+
+  try {
+    uIOhook.on('keydown', (e) => {
+      // Key Recording for Settings
+      if (isRecordingKey) {
+        settings.holdKey = e.keycode
+        saveSettings()
+        isRecordingKey = false
+        // Notify renderer
+        if (settingsWindow) {
+          settingsWindow.webContents.send('key-recorded', e.keycode)
         }
-        mainWindow.webContents.send('window-hidden')
+        return
+      }
+
+      // PTT Logic
+      if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
+        if (!mainWindow?.isVisible()) {
+          mainWindow?.show()
+          mainWindow?.focus()
+          mainWindow?.webContents.send('window-shown')
+        }
+      }
+    })
+
+    uIOhook.on('keyup', (e) => {
+      // PTT Logic
+      if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
+        if (mainWindow?.isVisible()) {
+          mainWindow?.hide()
+          if (process.platform === 'darwin') app.hide()
+          mainWindow?.webContents.send('window-hidden')
+        }
+      }
+    })
+
+    uIOhook.start()
+  } catch (error) {
+    console.error('Failed to start uiohook:', error)
+  }
+
+  // Settings Window
+  let settingsWindow: BrowserWindow | null = null
+
+  const createSettingsWindow = () => {
+    if (settingsWindow) {
+      settingsWindow.focus()
+      return
+    }
+
+    settingsWindow = new BrowserWindow({
+      width: 400,
+      height: 450, // Increased height for new options
+      title: 'Settings',
+      resizable: false,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false
+      }
+    })
+
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/settings`)
+    } else {
+      settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'settings' })
+    }
+
+    settingsWindow.on('closed', () => {
+      settingsWindow = null
+      isRecordingKey = false // Cancel recording if closed
+    })
+  }
+
+  // IPC Handlers for Settings
+  ipcMain.handle('get-settings', () => settings)
+
+  ipcMain.handle('update-setting', (_, key, value) => {
+    // @ts-ignore
+    settings[key] = value
+    saveSettings()
+
+    if (key === 'hotkey' && settings.triggerMode === 'toggle') {
+      globalShortcut.unregisterAll()
+      registerGlobalShortcut()
+    }
+
+    if (key === 'triggerMode') {
+      if (value === 'toggle') {
+        registerGlobalShortcut()
       } else {
-        mainWindow.show()
-        mainWindow.focus()
-        mainWindow.webContents.send('window-shown')
+        globalShortcut.unregisterAll()
       }
     }
   })
+
+  ipcMain.handle('start-key-recording', () => {
+    isRecordingKey = true
+  })
+
+  // Register Global Shortcut Helper
+  const registerGlobalShortcut = () => {
+    if (settings.triggerMode !== 'toggle') return
+
+    try {
+      globalShortcut.unregisterAll() // Clear old ones
+      globalShortcut.register(settings.hotkey, () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide()
+            if (process.platform === 'darwin') {
+              app.hide()
+            }
+            mainWindow.webContents.send('window-hidden')
+          } else {
+            mainWindow.show()
+            mainWindow.focus()
+            mainWindow.webContents.send('window-shown')
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Failed to register shortcut:', error)
+    }
+  }
+
+  registerGlobalShortcut()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
