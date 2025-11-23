@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText } from './openai'
+import { initializePersistentConnection, startRecording, stopRecording, sendAudioChunk, closeConnection } from './assemblyai-persistent'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -80,14 +81,14 @@ app.whenReady().then(() => {
     }
   })
 
-  // Audio Data Handler
+  // Audio Data Handler (Batch mode - OpenAI)
   ipcMain.on('audio-data', async (_, buffer) => {
     try {
       console.log('[Performance] Received audio data in main process')
       console.time('Audio Processing')
       const startProcessing = performance.now()
 
-      // 1. Process Audio (Transcribe) - processAudio already handles text injection
+      // 1. Process Audio (Transcribe) - processAudio handles text injection
       const text = await processAudio(buffer)
       console.log('[Performance] Transcription complete:', text)
       console.timeEnd('Audio Processing')
@@ -103,7 +104,6 @@ app.whenReady().then(() => {
       console.error('Error processing audio:', error)
     }
   })
-
   // Create Tray Icon
   const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
   const image = nativeImage.createFromPath(trayIconPath)
@@ -306,6 +306,9 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // Close Assembly AI connection
+  closeConnection()
+
   if (process.platform !== 'darwin') {
     app.quit()
   }

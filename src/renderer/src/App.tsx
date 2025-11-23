@@ -39,8 +39,8 @@ function App(): React.JSX.Element {
         // Setup Audio Context for Visualizer
         const audioContext = new AudioContext()
         const analyser = audioContext.createAnalyser()
-        analyser.fftSize = 128 // Higher resolution
-        analyser.smoothingTimeConstant = 0.8 // Smoother transition
+        analyser.fftSize = 128
+        analyser.smoothingTimeConstant = 0.8
         const source = audioContext.createMediaStreamSource(stream)
         source.connect(analyser)
 
@@ -53,17 +53,14 @@ function App(): React.JSX.Element {
           const dataArray = new Uint8Array(analyser.frequencyBinCount)
           analyser.getByteFrequencyData(dataArray)
 
-          // Create 12 bars from low frequencies (voice range)
           const bars: number[] = []
-          const step = Math.floor(dataArray.length / 24) // Use more of the spectrum
+          const step = Math.floor(dataArray.length / 24)
 
           for (let i = 0; i < 12; i++) {
-            const value = dataArray[i * step + 2] // Skip very low freq
-            // Scale value to height (min 4, max 24)
+            const value = dataArray[i * step + 2]
             bars.push(Math.max(4, (value / 255) * 24))
           }
 
-          // Mirror the bars for symmetry
           const mirroredBars = [...bars.slice().reverse(), ...bars]
           setAudioData(mirroredBars)
 
@@ -82,7 +79,6 @@ function App(): React.JSX.Element {
 
         mediaRecorder.onstop = async (): Promise<void> => {
           console.time('Total Latency')
-          const startTime = performance.now()
           console.log('[Performance] Recording stopped at:', new Date().toISOString())
 
           const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
@@ -90,10 +86,6 @@ function App(): React.JSX.Element {
 
           console.log('[Performance] Sending audio to main process...')
           window.electron.ipcRenderer.send('audio-data', buffer)
-
-          // Listen for completion (we need to add a listener for this in main or just infer from UI state if we had one)
-          // Actually, the main process handles everything after 'audio-data'. 
-          // We should ask main to send a 'processing-complete' event to measure full round trip.
         }
 
         mediaRecorder.start()
@@ -103,14 +95,17 @@ function App(): React.JSX.Element {
     }
 
     const stopRecording = (): void => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop()
-        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
-      }
+      // Delay stopping to capture trailing audio after key release
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop()
+          mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
+        }
 
-      // Cleanup Audio Context
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
-      if (audioContextRef.current) audioContextRef.current.close()
+        // Cleanup Audio Context
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+        if (audioContextRef.current) audioContextRef.current.close()
+      }, 500) // 500ms delay
     }
 
     const onShow = (): void => {
