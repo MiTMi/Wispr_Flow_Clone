@@ -105,7 +105,7 @@ app.whenReady().then(() => {
       }
 
       // 3. Wait for focus to return (small delay)
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       // 4. Inject Text
       if (text) {

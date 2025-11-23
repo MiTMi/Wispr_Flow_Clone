@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { exec } from 'child_process'
-import { app } from 'electron'
+import { app, clipboard } from 'electron'
 import dotenv from 'dotenv'
 
 // Explicitly load .env from project root
@@ -63,7 +63,7 @@ export async function processAudio(buffer: ArrayBuffer): Promise<string> {
                 },
                 { role: 'user', content: rawText }
             ],
-            model: 'llama-3.3-70b-versatile', // Fast and smart
+            model: 'llama-3.3-70b-versatile', // Smart formatting
         })
         console.timeEnd('Groq Formatting')
 
@@ -83,33 +83,28 @@ export async function processAudio(buffer: ArrayBuffer): Promise<string> {
     }
 }
 
+// ... (existing code) ...
+
 export async function injectText(text: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        // Escape double quotes and backslashes for AppleScript string
-        const safeText = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        try {
+            // 1. Set clipboard instantly using Electron API
+            clipboard.writeText(text)
 
-        // Use clipboard for faster and more reliable pasting
-        const scriptContent = `
-      set the clipboard to "${safeText}"
-      delay 0.5
-      tell application "System Events"
-        key code 9 using command down
-      end tell
-    `
+            // 2. Trigger Paste (Cmd+V) using minimal AppleScript
+            // We use 'osascript -e' to avoid file I/O
+            const script = `tell application "System Events" to key code 9 using command down`
 
-        const scriptPath = path.join(os.tmpdir(), `wispr_inject_${Date.now()}.scpt`)
-        fs.writeFileSync(scriptPath, scriptContent)
-
-        exec(`osascript "${scriptPath}"`, (error) => {
-            // Cleanup script file
-            try { fs.unlinkSync(scriptPath) } catch (e) { /* ignore */ }
-
-            if (error) {
-                console.error('Error injecting text:', error)
-                reject(error)
-            } else {
-                resolve()
-            }
-        })
+            exec(`osascript -e '${script}'`, (error) => {
+                if (error) {
+                    console.error('Error injecting text:', error)
+                    reject(error)
+                } else {
+                    resolve()
+                }
+            })
+        } catch (error) {
+            reject(error)
+        }
     })
 }

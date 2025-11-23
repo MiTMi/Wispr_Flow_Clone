@@ -106,7 +106,7 @@ function App(): React.JSX.Element {
         // Cleanup Audio Context
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
         if (audioContextRef.current) audioContextRef.current.close()
-      }, 500) // 500ms delay
+      }, 100) // Reduced delay for speed
     }
 
     const onShow = (): void => {
