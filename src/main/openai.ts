@@ -70,8 +70,8 @@ export async function processAudio(buffer: ArrayBuffer): Promise<string> {
         const formattedText = completion.choices[0].message.content || rawText
         console.log('Formatted Text:', formattedText)
 
-        // 4. Inject Text
-        await injectText(formattedText)
+        // 4. Inject Text - REMOVED (Handled in index.ts now)
+        // await injectText(formattedText)
 
         // Cleanup
         fs.unlinkSync(tempFilePath)

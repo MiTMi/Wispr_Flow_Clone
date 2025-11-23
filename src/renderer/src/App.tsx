@@ -5,6 +5,7 @@ import Settings from './components/Settings'
 function App(): React.JSX.Element {
   const [currentView, setCurrentView] = useState('flow')
   const [isListening, setIsListening] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [audioData, setAudioData] = useState<number[]>(new Array(24).fill(4)) // 24 bars
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
@@ -110,11 +111,14 @@ function App(): React.JSX.Element {
 
     const onShow = (): void => {
       setIsListening(true)
+      setIsProcessing(false)
       startRecording()
     }
 
     const onHide = (): void => {
+      // When key is released (hide requested), we stop recording but keep window open for processing
       setIsListening(false)
+      setIsProcessing(true)
       stopRecording()
     }
 
@@ -124,6 +128,12 @@ function App(): React.JSX.Element {
     window.electron.ipcRenderer.on('processing-complete', (_: any, mainTime: number) => {
       console.timeEnd('Total Latency')
       console.log(`[Performance] Main Process took: ${mainTime.toFixed(2)}ms`)
+
+      // Keep visible for a moment to show completion, then hide
+      setTimeout(() => {
+        setIsProcessing(false)
+        window.electron.ipcRenderer.send('hide-window')
+      }, 500)
     })
 
     return (): void => {
@@ -133,17 +143,9 @@ function App(): React.JSX.Element {
     }
   }, [currentView])
 
-  const handleStop = (): void => {
-    setIsListening(false)
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
-    }
-    window.electron.ipcRenderer.send('hide-window')
-  }
-
   const handleCancel = (): void => {
     setIsListening(false)
+    setIsProcessing(false)
     if (mediaRecorderRef.current) {
       chunksRef.current = [] // Clear chunks to prevent processing
       mediaRecorderRef.current.stop()
@@ -157,37 +159,42 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <div className="flex items-center justify-center h-screen w-screen bg-transparent select-none">
-      <div className="flex items-center gap-5 px-5 py-3 bg-black rounded-full border border-zinc-800 shadow-2xl min-w-[300px] justify-between">
-        {/* Close Button (Grey Circle with X) */}
+    <div className="flex flex-col h-screen w-screen bg-transparent select-none justify-end pb-10 items-center">
+      <div className={`flex items-center gap-5 px-5 py-3 bg-black/90 backdrop-blur-xl rounded-full border border-zinc-800 shadow-2xl min-w-[300px] justify-between transition-all duration-300 ${isProcessing ? 'scale-105 border-blue-500/50' : ''}`}>
+        {/* Close Button */}
         <button
           onClick={handleCancel}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors group"
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors group"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-300 group-hover:text-white">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-white">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
 
-        {/* Visualizer (Mirrored Bars) */}
-        <div className="flex items-center gap-[2px] h-8 justify-center flex-1 mx-2">
-          {audioData.map((height, i) => (
-            <div
-              key={i}
-              className="w-1 bg-white rounded-full transition-all duration-75 ease-out"
-              style={{ height: `${height}px` }}
-            ></div>
-          ))}
+        {/* Visualizer / Processing State */}
+        <div className="flex items-center gap-[3px] h-8 justify-center flex-1 mx-4">
+          {isProcessing ? (
+            // Processing Animation (Indeterminate Wave)
+            <div className="flex gap-1">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="w-1.5 bg-blue-500 rounded-full animate-pulse" style={{ height: '16px', animationDelay: `${i * 0.1}s` }}></div>
+              ))}
+            </div>
+          ) : (
+            // Audio Visualizer
+            audioData.map((height, i) => (
+              <div
+                key={i}
+                className="w-1 bg-white rounded-full transition-all duration-75 ease-out"
+                style={{ height: `${height}px` }}
+              ></div>
+            ))
+          )}
         </div>
 
-        {/* Stop Button (Red Circle with Square) */}
-        <button
-          onClick={handleStop}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 transition-colors shadow-[0_0_10px_rgba(239,68,68,0.4)]"
-        >
-          <div className="w-3 h-3 bg-white rounded-[2px]"></div>
-        </button>
+        {/* Status Indicator */}
+        <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-blue-500 animate-ping' : isListening ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
       </div>
     </div>
   )

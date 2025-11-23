@@ -12,9 +12,12 @@ let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
+  const { width, height } = require('electron').screen.getPrimaryDisplay().workAreaSize
   mainWindow = new BrowserWindow({
-    width: 600,
-    height: 100,
+    width: width,
+    height: height,
+    x: 0,
+    y: 0,
     show: false,
     frame: false,
     transparent: true,
@@ -28,6 +31,8 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+
 
   mainWindow.on('ready-to-show', () => {
     // Don't show on launch, wait for shortcut
@@ -87,15 +92,30 @@ app.whenReady().then(() => {
       console.time('Audio Processing')
       const startProcessing = performance.now()
 
-      // 1. Process Audio (Transcribe) - processAudio handles text injection
+      // 1. Process Audio (Transcribe)
       const text = await processAudio(buffer)
       console.log('[Performance] Transcription complete:', text)
       console.timeEnd('Audio Processing')
 
+      // 2. Hide Window to return focus to previous app
+      if (mainWindow && mainWindow.isVisible()) {
+        mainWindow.hide()
+        if (process.platform === 'darwin') app.hide()
+        mainWindow.webContents.send('window-hidden')
+      }
+
+      // 3. Wait for focus to return (small delay)
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      // 4. Inject Text
+      if (text) {
+        await injectText(text)
+      }
+
       const totalTime = performance.now() - startProcessing
       console.log(`[Performance] Total Main Process Time: ${totalTime.toFixed(2)}ms`)
 
-      // Notify renderer of completion
+      // Notify renderer of completion (to reset state)
       if (mainWindow) {
         mainWindow.webContents.send('processing-complete', totalTime)
       }
@@ -195,8 +215,7 @@ app.whenReady().then(() => {
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
         if (mainWindow?.isVisible()) {
-          mainWindow?.hide()
-          if (process.platform === 'darwin') app.hide()
+          // Do NOT hide immediately. Tell renderer to stop recording.
           mainWindow?.webContents.send('window-hidden')
         }
       }
@@ -275,10 +294,7 @@ app.whenReady().then(() => {
       globalShortcut.register(settings.hotkey, () => {
         if (mainWindow) {
           if (mainWindow.isVisible()) {
-            mainWindow.hide()
-            if (process.platform === 'darwin') {
-              app.hide()
-            }
+            // Do NOT hide immediately. Tell renderer to stop.
             mainWindow.webContents.send('window-hidden')
           } else {
             mainWindow.show()
