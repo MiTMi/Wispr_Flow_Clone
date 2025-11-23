@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, globalShortcut } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -6,6 +6,7 @@ import { processAudio } from './openai'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
@@ -59,6 +60,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // Force Dock Icon on macOS
+  if (process.platform === 'darwin' && app.dock) {
+    const dockIconPath = join(__dirname, '../../resources/icon.png')
+    app.dock.setIcon(nativeImage.createFromPath(dockIconPath))
+  }
+
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
@@ -81,6 +88,34 @@ app.whenReady().then(() => {
       console.error('Failed to process audio:', error)
     }
   })
+
+  // Create Tray Icon
+  const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
+  const image = nativeImage.createFromPath(trayIconPath)
+  tray = new Tray(image.resize({ width: 32, height: 32 })) // Larger size for better visibility
+  tray.setToolTip('Wispr Flow Clone')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show/Hide Flow', click: () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide()
+            if (process.platform === 'darwin') app.hide()
+            mainWindow.webContents.send('window-hidden')
+          } else {
+            mainWindow.show()
+            mainWindow.focus()
+            mainWindow.webContents.send('window-shown')
+          }
+        }
+      }
+    },
+    { type: 'separator' },
+    { label: 'Quit', click: () => app.quit() }
+  ])
+
+  tray.setContextMenu(contextMenu)
 
   createWindow()
 
