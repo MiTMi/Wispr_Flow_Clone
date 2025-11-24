@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 
 import Settings from './components/Settings'
+import ExamplesWindow from './components/ExamplesWindow'
+
+import Dashboard from './components/Dashboard'
 
 function App(): React.JSX.Element {
   const [currentView, setCurrentView] = useState('flow')
@@ -20,6 +23,8 @@ function App(): React.JSX.Element {
       const hash = window.location.hash
       if (hash === '#/settings' || hash === '#settings') {
         setCurrentView('settings')
+      } else if (hash === '#/examples' || hash === '#examples') {
+        setCurrentView('examples')
       } else {
         setCurrentView('flow')
       }
@@ -154,8 +159,14 @@ function App(): React.JSX.Element {
     window.electron.ipcRenderer.send('hide-window')
   }
 
+  // ...
+
   if (currentView === 'settings') {
-    return <Settings />
+    return <Dashboard />
+  }
+
+  if (currentView === 'examples') {
+    return <ExamplesWindow />
   }
 
   return (
@@ -173,10 +184,10 @@ function App(): React.JSX.Element {
         </button>
 
         {/* Visualizer / Processing State */}
-        <div className="flex items-center gap-[3px] h-8 justify-center flex-1 mx-4">
+        <div className="flex items-end gap-[3px] h-8 justify-center flex-1 mx-4 pb-1">
           {isProcessing ? (
             // Processing Animation (Indeterminate Wave)
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center h-full">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="w-1.5 bg-blue-500 rounded-full animate-pulse" style={{ height: '16px', animationDelay: `${i * 0.1}s` }}></div>
               ))}
@@ -193,8 +204,10 @@ function App(): React.JSX.Element {
           )}
         </div>
 
-        {/* Status Indicator */}
-        <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-blue-500 animate-ping' : isListening ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+        {/* Status Indicator (Wrapped for centering) */}
+        <div className="w-8 h-8 flex items-center justify-center">
+          <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-blue-500 animate-ping' : isListening ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+        </div>
       </div>
     </div>
   )

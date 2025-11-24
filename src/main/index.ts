@@ -3,6 +3,7 @@ import { join } from 'path'
 import * as fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
+import { loadHistory, getStats, deleteHistoryItem } from './history'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText } from './openai'
 import 'dotenv/config'
@@ -35,8 +36,11 @@ function createWindow(): void {
 
 
   mainWindow.on('ready-to-show', () => {
-    // Don't show on launch, wait for shortcut
-    // mainWindow.show()
+    if (mainWindow) {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
+    }
+    // mainWindow.webContents.openDevTools()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -80,7 +84,10 @@ app.whenReady().then(() => {
   ipcMain.on('hide-window', () => {
     if (mainWindow && mainWindow.isVisible()) {
       mainWindow.hide()
-      if (process.platform === 'darwin') app.hide()
+      // Only hide the app if settings window is NOT open
+      if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
+        app.hide()
+      }
       mainWindow.webContents.send('window-hidden')
     }
   })
@@ -93,14 +100,17 @@ app.whenReady().then(() => {
       const startProcessing = performance.now()
 
       // 1. Process Audio (Transcribe)
-      const text = await processAudio(buffer)
+      const text = await processAudio(buffer, settings)
       console.log('[Performance] Transcription complete:', text)
       console.timeEnd('Audio Processing')
 
       // 2. Hide Window to return focus to previous app
       if (mainWindow && mainWindow.isVisible()) {
         mainWindow.hide()
-        if (process.platform === 'darwin') app.hide()
+        // Only hide the app if settings window is NOT open
+        if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
+          app.hide()
+        }
         mainWindow.webContents.send('window-hidden')
       }
 
@@ -130,21 +140,7 @@ app.whenReady().then(() => {
   tray.setToolTip('Wispr Flow Clone')
 
   const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show/Hide Flow', click: () => {
-        if (mainWindow) {
-          if (mainWindow.isVisible()) {
-            mainWindow.hide()
-            if (process.platform === 'darwin') app.hide()
-            mainWindow.webContents.send('window-hidden')
-          } else {
-            mainWindow.show()
-            mainWindow.focus()
-            mainWindow.webContents.send('window-shown')
-          }
-        }
-      }
-    },
+
     { label: 'Settings...', click: () => createSettingsWindow() },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() }
@@ -159,7 +155,11 @@ app.whenReady().then(() => {
   let settings = {
     hotkey: 'CommandOrControl+Shift+Space',
     triggerMode: 'toggle', // 'toggle' | 'hold'
-    holdKey: null as number | null
+    holdKey: null as number | null,
+    startOnLogin: false,
+    style: 'polished',
+    language: 'auto',
+    customInstructions: ''
   }
 
   const loadSettings = () => {
@@ -168,6 +168,11 @@ app.whenReady().then(() => {
         const data = fs.readFileSync(settingsPath, 'utf-8')
         const loaded = JSON.parse(data)
         settings = { ...settings, ...loaded }
+
+        // Sync login item settings
+        if (typeof settings.startOnLogin === 'boolean') {
+          app.setLoginItemSettings({ openAtLogin: settings.startOnLogin })
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -231,15 +236,19 @@ app.whenReady().then(() => {
 
   const createSettingsWindow = () => {
     if (settingsWindow) {
-      settingsWindow.focus()
-      return
+      if (settingsWindow.isDestroyed()) {
+        settingsWindow = null
+      } else {
+        settingsWindow.focus()
+        return
+      }
     }
 
     settingsWindow = new BrowserWindow({
-      width: 400,
-      height: 450, // Increased height for new options
+      width: 1000,
+      height: 700,
       title: 'Settings',
-      resizable: false,
+      resizable: true,
       autoHideMenuBar: true,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
@@ -253,11 +262,78 @@ app.whenReady().then(() => {
       settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'settings' })
     }
 
+    // Handle closing properly
     settingsWindow.on('closed', () => {
       settingsWindow = null
-      isRecordingKey = false // Cancel recording if closed
+      isRecordingKey = false
+    })
+
+    // Also handle close event to be safe
+    settingsWindow.on('close', () => {
+      isRecordingKey = false
     })
   }
+
+  // Examples Window
+  let examplesWindow: BrowserWindow | null = null
+
+  const createExamplesWindow = () => {
+    if (examplesWindow) {
+      if (examplesWindow.isDestroyed()) {
+        examplesWindow = null
+      } else {
+        examplesWindow.focus()
+        return
+      }
+    }
+
+    examplesWindow = new BrowserWindow({
+      width: 500,
+      height: 600,
+      title: 'Custom Instruction Examples',
+      resizable: false,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false
+      }
+    })
+
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      examplesWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/examples`)
+    } else {
+      examplesWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'examples' })
+    }
+
+    examplesWindow.on('closed', () => {
+      examplesWindow = null
+    })
+  }
+
+  ipcMain.on('open-examples-window', () => {
+    createExamplesWindow()
+  })
+
+  ipcMain.handle('start-key-recording', () => {
+    isRecordingKey = true
+  })
+
+  ipcMain.handle('stop-key-recording', () => {
+    isRecordingKey = false
+  })
+
+  // History Handlers
+  ipcMain.handle('get-history', () => {
+    return loadHistory()
+  })
+
+  ipcMain.handle('get-stats', () => {
+    return getStats()
+  })
+
+  ipcMain.handle('delete-history-item', (_, id) => {
+    deleteHistoryItem(id)
+  })
 
   // IPC Handlers for Settings
   ipcMain.handle('get-settings', () => settings)
@@ -266,6 +342,10 @@ app.whenReady().then(() => {
     // @ts-ignore
     settings[key] = value
     saveSettings()
+
+    if (key === 'startOnLogin') {
+      app.setLoginItemSettings({ openAtLogin: value })
+    }
 
     if (key === 'hotkey' && settings.triggerMode === 'toggle') {
       globalShortcut.unregisterAll()

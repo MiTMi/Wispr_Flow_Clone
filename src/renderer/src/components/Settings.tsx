@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 
 function Settings(): React.JSX.Element {
+    const [activeTab, setActiveTab] = useState('general')
+
+    // Settings State
     const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space')
     const [triggerMode, setTriggerMode] = useState<'toggle' | 'hold'>('toggle')
     const [holdKey, setHoldKey] = useState<number | null>(null)
+    const [startOnLogin, setStartOnLogin] = useState(false)
+    const [style, setStyle] = useState('polished')
+    const [language, setLanguage] = useState('auto')
+    const [customInstructions, setCustomInstructions] = useState('')
 
     const [isRecording, setIsRecording] = useState(false)
     const [isRecordingHoldKey, setIsRecordingHoldKey] = useState(false)
@@ -14,6 +21,10 @@ function Settings(): React.JSX.Element {
             if (settings.hotkey) setHotkey(settings.hotkey)
             if (settings.triggerMode) setTriggerMode(settings.triggerMode)
             if (settings.holdKey) setHoldKey(settings.holdKey)
+            if (settings.startOnLogin !== undefined) setStartOnLogin(settings.startOnLogin)
+            if (settings.style) setStyle(settings.style)
+            if (settings.language) setLanguage(settings.language)
+            if (settings.customInstructions) setCustomInstructions(settings.customInstructions)
         })
 
         // Listen for hold key recording
@@ -29,6 +40,7 @@ function Settings(): React.JSX.Element {
         }
     }, [])
 
+    // ... (Existing Hotkey Logic - Preserved) ...
     useEffect(() => {
         if (!isRecording) return
 
@@ -113,130 +125,204 @@ function Settings(): React.JSX.Element {
         }
     }, [isRecording])
 
-    const handleModeChange = (mode: 'toggle' | 'hold') => {
-        setTriggerMode(mode)
-        window.electron.ipcRenderer.invoke('update-setting', 'triggerMode', mode)
-    }
-
-    const startHoldKeyRecording = () => {
-        setIsRecordingHoldKey(true)
-        window.electron.ipcRenderer.invoke('start-key-recording')
+    const updateSetting = (key: string, value: any) => {
+        window.electron.ipcRenderer.invoke('update-setting', key, value)
     }
 
     const getKeyName = (keycode: number | null): string => {
         if (!keycode) return 'Not Set'
-
-        // Mapping based on uiohook-napi keycodes
         const map: Record<number, string> = {
-            56: 'Left Option',
-            3640: 'Right Option',
-            29: 'Left Control',
-            3613: 'Right Control',
-            42: 'Left Shift',
-            54: 'Right Shift',
-            3675: 'Left Command',
-            3676: 'Right Command',
-            57: 'Space',
-            1: 'Escape',
-            28: 'Enter',
-            14: 'Backspace',
-            15: 'Tab',
-            58: 'Caps Lock',
-            59: 'F1', 60: 'F2', 61: 'F3', 62: 'F4', 63: 'F5', 64: 'F6',
-            65: 'F7', 66: 'F8', 67: 'F9', 68: 'F10', 87: 'F11', 88: 'F12'
+            56: 'Left Option', 3640: 'Right Option', 29: 'Left Control', 3613: 'Right Control',
+            42: 'Left Shift', 54: 'Right Shift', 3675: 'Left Command', 3676: 'Right Command',
+            57: 'Space', 1: 'Escape', 28: 'Enter', 14: 'Backspace', 15: 'Tab', 58: 'Caps Lock'
         }
-
-        if (map[keycode]) return map[keycode]
-
-        // Fallback for letters (approximate, uiohook uses scancodes which often match ASCII for letters but not always)
-        // Actually, uiohook keycodes for A-Z are 30-? No, A is 30.
-        // Let's just return the code if unknown for now, or try to be smarter.
-        // A=30, S=31, D=32, F=33...
-
-        return `Key Code: ${keycode}`
+        return map[keycode] || `Key Code: ${keycode}`
     }
 
-    return (
-        <div className="h-screen w-screen bg-zinc-900 text-white p-6 select-none flex flex-col">
-            <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl font-bold">Settings</h1>
-                <button
-                    onClick={() => window.close()}
-                    className="text-zinc-400 hover:text-white transition-colors"
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
+    const SidebarItem = ({ id, label, icon }: { id: string, label: string, icon: React.ReactNode }) => (
+        <button
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === id
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'}`}
+        >
+            {icon}
+            {label}
+        </button>
+    )
 
-            <div className="space-y-6">
-                {/* Trigger Mode Selection */}
-                <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50">
-                    <label className="block text-sm font-medium text-zinc-300 mb-3">
-                        Trigger Mode
-                    </label>
-                    <div className="flex bg-zinc-900 rounded-md p-1 border border-zinc-700">
-                        <button
-                            onClick={() => handleModeChange('toggle')}
-                            className={`flex-1 py-2 rounded-sm text-sm font-medium transition-colors ${triggerMode === 'toggle' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            Toggle (Shortcut)
-                        </button>
-                        <button
-                            onClick={() => handleModeChange('hold')}
-                            className={`flex-1 py-2 rounded-sm text-sm font-medium transition-colors ${triggerMode === 'hold' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            Push-to-Talk (Hold)
-                        </button>
-                    </div>
+    return (
+        <div className="flex h-screen w-screen bg-zinc-950 text-white select-none overflow-hidden font-sans">
+            {/* Sidebar */}
+            <div className="w-64 bg-zinc-900/80 border-r border-zinc-800 p-6 flex flex-col gap-2 backdrop-blur-xl">
+                <div className="mb-8 px-2">
+                    <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Wispr Flow</h1>
+                    <p className="text-xs text-zinc-500 mt-1">v1.0.0</p>
                 </div>
 
-                {/* Dynamic Settings based on Mode */}
-                {triggerMode === 'toggle' ? (
-                    <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50">
-                        <label className="block text-sm font-medium text-zinc-300 mb-3">
-                            Global Shortcut
-                        </label>
-                        <div className="flex flex-col gap-2">
-                            <button
-                                onClick={() => setIsRecording(true)}
-                                className={`px-4 py-3 rounded-md border text-lg font-mono transition-all duration-200 ${isRecording
-                                        ? 'bg-red-500/10 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                                        : 'bg-zinc-900 border-zinc-700 hover:border-zinc-600 text-zinc-100'
-                                    } w-full text-center outline-none focus:ring-2 focus:ring-blue-500/50`}
-                            >
-                                {isRecording ? 'Press keys...' : hotkey}
-                            </button>
-                            <p className="text-xs text-zinc-500 text-center mt-1">
-                                {isRecording ? 'Release keys to save' : 'Click to record a new shortcut'}
-                            </p>
+                <SidebarItem id="general" label="General" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>} />
+                <SidebarItem id="ai" label="AI Personality" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 2a10 10 0 0 1 10 10"></path><path d="M12 22a10 10 0 0 1-10-10"></path><path d="M2 12h10"></path></svg>} />
+                <SidebarItem id="shortcuts" label="Shortcuts" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line></svg>} />
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 bg-zinc-950 p-10 overflow-y-auto">
+                <div className="max-w-2xl mx-auto space-y-8">
+
+                    {activeTab === 'general' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <h2 className="text-2xl font-semibold mb-6">General Settings</h2>
+
+                            {/* Start on Login */}
+                            <div className="flex items-center justify-between bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all">
+                                <div>
+                                    <div className="font-medium text-zinc-200">Start on Login</div>
+                                    <div className="text-sm text-zinc-500 mt-1">Launch automatically when you sign in</div>
+                                </div>
+                                <button
+                                    onClick={() => { setStartOnLogin(!startOnLogin); updateSetting('startOnLogin', !startOnLogin); }}
+                                    className={`w-12 h-6 rounded-full transition-colors relative ${startOnLogin ? 'bg-blue-600' : 'bg-zinc-700'}`}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${startOnLogin ? 'left-7' : 'left-1'}`}></div>
+                                </button>
+                            </div>
+
+                            {/* Input Language */}
+                            <div className="space-y-3">
+                                <label className="block text-sm font-medium text-zinc-400">Input Language</label>
+                                <div className="relative">
+                                    <select
+                                        value={language}
+                                        onChange={(e) => { setLanguage(e.target.value); updateSetting('language', e.target.value); }}
+                                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm appearance-none focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                                    >
+                                        <option value="auto">✨ Auto-Detect (Default)</option>
+                                        <option value="en">🇺🇸 English</option>
+                                        <option value="he">🇮🇱 Hebrew (עברית)</option>
+                                        <option value="fr">🇫🇷 French (Français)</option>
+                                        <option value="es">🇪🇸 Spanish (Español)</option>
+                                        <option value="de">🇩🇪 German (Deutsch)</option>
+                                        <option value="it">🇮🇹 Italian (Italiano)</option>
+                                        <option value="pt">🇵🇹 Portuguese (Português)</option>
+                                        <option value="ru">🇷🇺 Russian (Русский)</option>
+                                        <option value="ja">🇯🇵 Japanese (日本語)</option>
+                                        <option value="zh">🇨🇳 Chinese (中文)</option>
+                                    </select>
+                                    <div className="absolute right-4 top-3.5 pointer-events-none text-zinc-500">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-zinc-500">Force a specific language for faster detection on short phrases.</p>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50">
-                        <label className="block text-sm font-medium text-zinc-300 mb-3">
-                            Hold Key
-                        </label>
-                        <div className="flex flex-col gap-2">
-                            <button
-                                onClick={startHoldKeyRecording}
-                                className={`px-4 py-3 rounded-md border text-lg font-mono transition-all duration-200 ${isRecordingHoldKey
-                                        ? 'bg-blue-500/10 border-blue-500 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-                                        : 'bg-zinc-900 border-zinc-700 hover:border-zinc-600 text-zinc-100'
-                                    } w-full text-center outline-none focus:ring-2 focus:ring-blue-500/50`}
-                            >
-                                {isRecordingHoldKey ? 'Press single key...' : getKeyName(holdKey)}
-                            </button>
-                            <p className="text-xs text-zinc-500 text-center mt-1">
-                                {isRecordingHoldKey ? 'Press any key to set as trigger' : 'Click to set the key to hold'}
-                            </p>
+                    )}
+
+                    {activeTab === 'ai' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <h2 className="text-2xl font-semibold mb-6">AI Personality</h2>
+
+                            {/* Style & Tone */}
+                            <div className="space-y-3">
+                                <label className="block text-sm font-medium text-zinc-400">Style & Tone</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { id: 'polished', label: 'Polished', desc: 'Fixes grammar, professional' },
+                                        { id: 'casual', label: 'Casual', desc: 'Verbatim, relaxed vibe' },
+                                        { id: 'bullet', label: 'Bullet Points', desc: 'Converts to a list' },
+                                        { id: 'summary', label: 'Summary', desc: 'Concise paragraph' }
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => { setStyle(opt.id); updateSetting('style', opt.id); }}
+                                            className={`p-4 rounded-xl border text-left transition-all ${style === opt.id
+                                                ? 'bg-blue-600/10 border-blue-500 text-blue-400 ring-1 ring-blue-500/50'
+                                                : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:bg-zinc-900'}`}
+                                        >
+                                            <div className="font-medium text-sm mb-1">{opt.label}</div>
+                                            <div className="text-xs opacity-70">{opt.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Custom Instructions */}
+                            <div className="space-y-3 pt-4">
+                                <label className="block text-sm font-medium text-zinc-400">Custom Instructions</label>
+                                <textarea
+                                    value={customInstructions}
+                                    onChange={(e) => { setCustomInstructions(e.target.value); updateSetting('customInstructions', e.target.value); }}
+                                    placeholder='e.g. "Always spell Wispr without an e", "Use British spelling", "Never use emojis"'
+                                    className="w-full h-32 bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none placeholder:text-zinc-700"
+                                />
+                                <p className="text-xs text-zinc-500">
+                                    These instructions will be appended to the system prompt.
+                                    <button
+                                        onClick={() => window.electron.ipcRenderer.send('open-examples-window')}
+                                        className="ml-2 text-blue-400 hover:text-blue-300 hover:underline"
+                                    >
+                                        Read more
+                                    </button>
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+
+                    {activeTab === 'shortcuts' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <h2 className="text-2xl font-semibold mb-6">Shortcuts</h2>
+
+                            <div className="bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 flex mb-6">
+                                <button
+                                    onClick={() => { setTriggerMode('toggle'); updateSetting('triggerMode', 'toggle'); }}
+                                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${triggerMode === 'toggle' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Toggle Mode
+                                </button>
+                                <button
+                                    onClick={() => { setTriggerMode('hold'); updateSetting('triggerMode', 'hold'); }}
+                                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${triggerMode === 'hold' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Push-to-Talk
+                                </button>
+                            </div>
+
+                            <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                                <div className="mb-4 p-4 bg-zinc-950 rounded-full border border-zinc-800">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M12 12m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0"></path><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0"></path></svg>
+                                </div>
+
+                                {triggerMode === 'toggle' ? (
+                                    <>
+                                        <h3 className="text-lg font-medium mb-2">Global Shortcut</h3>
+                                        <p className="text-sm text-zinc-500 mb-6 max-w-xs">Press this key combination to start/stop recording from anywhere.</p>
+                                        <button
+                                            onClick={() => setIsRecording(true)}
+                                            className={`px-8 py-4 rounded-xl border text-xl font-mono transition-all ${isRecording
+                                                ? 'bg-red-500/10 border-red-500 text-red-400 animate-pulse ring-2 ring-red-500/20'
+                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:bg-zinc-900'}`}
+                                        >
+                                            {isRecording ? 'Press keys...' : hotkey}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-lg font-medium mb-2">Push-to-Talk Key</h3>
+                                        <p className="text-sm text-zinc-500 mb-6 max-w-xs">Hold this key to record. Release to stop.</p>
+                                        <button
+                                            onClick={() => { setIsRecordingHoldKey(true); window.electron.ipcRenderer.invoke('start-key-recording'); }}
+                                            className={`px-8 py-4 rounded-xl border text-xl font-mono transition-all ${isRecordingHoldKey
+                                                ? 'bg-blue-500/10 border-blue-500 text-blue-400 animate-pulse ring-2 ring-blue-500/20'
+                                                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:bg-zinc-900'}`}
+                                        >
+                                            {isRecordingHoldKey ? 'Press Key...' : getKeyName(holdKey)}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                </div>
             </div>
         </div>
     )
