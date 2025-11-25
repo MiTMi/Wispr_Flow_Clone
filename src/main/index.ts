@@ -13,16 +13,17 @@ let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const { width, height } = require('electron').screen.getPrimaryDisplay().workAreaSize
+  const { width, height, x, y } = require('electron').screen.getPrimaryDisplay().bounds
+  const overscan = 0 // Reset overscan logic, using manual offset
   mainWindow = new BrowserWindow({
-    width: width,
+    width: width + 200, // Extra width to cover right side
     height: height,
-    x: 0,
+    x: -100, // Force move left
     y: 0,
     show: false,
     frame: false,
     transparent: true,
-    resizable: false,
+    resizable: true, // Allow programmatic resize via setBounds
     alwaysOnTop: true,
     hasShadow: false,
     autoHideMenuBar: true,
@@ -33,14 +34,34 @@ function createWindow(): void {
     }
   })
 
+  // Listen for display changes (resolution changes, monitor connect/disconnect)
+  const { screen } = require('electron')
+
+  const updateWindowBounds = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { width, height } = screen.getPrimaryDisplay().bounds
+      console.log(`Updating window bounds with manual offset: ${width}x${height} at -100,0`)
+      mainWindow.setBounds({
+        x: -100,
+        y: 0,
+        width: width + 200,
+        height: height
+      })
+    }
+  }
+
+  screen.on('display-added', updateWindowBounds)
+  screen.on('display-removed', updateWindowBounds)
+  screen.on('display-metrics-changed', updateWindowBounds)
 
 
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
+      // mainWindow.webContents.openDevTools()
+      // mainWindow.show()
     }
-    // mainWindow.webContents.openDevTools()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -54,6 +75,22 @@ function createWindow(): void {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+// Helper function to ensure window matches current display before showing
+// This is critical for fixing positioning issues when resolution changes
+function ensureWindowMatchesDisplay(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const { screen } = require('electron')
+    const { width, height } = screen.getPrimaryDisplay().bounds
+    console.log(`[Display Fix] Ensuring window matches display with manual offset: ${width}x${height} at -100,0`)
+    mainWindow.setBounds({
+      x: -100,
+      y: 0,
+      width: width + 200,
+      height: height
+    })
   }
 }
 
@@ -209,6 +246,7 @@ app.whenReady().then(() => {
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
         if (!mainWindow?.isVisible()) {
+          ensureWindowMatchesDisplay() // Fix positioning before showing
           mainWindow?.show()
           mainWindow?.focus()
           mainWindow?.webContents.send('window-shown')
@@ -377,6 +415,7 @@ app.whenReady().then(() => {
             // Do NOT hide immediately. Tell renderer to stop.
             mainWindow.webContents.send('window-hidden')
           } else {
+            ensureWindowMatchesDisplay() // Fix positioning before showing
             mainWindow.show()
             mainWindow.focus()
             mainWindow.webContents.send('window-shown')
