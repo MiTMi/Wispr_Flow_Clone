@@ -4,6 +4,7 @@ import HistoryView from './HistoryView'
 import StyleView from './StyleView'
 import DictionaryView from './DictionaryView'
 import SettingsView from './SettingsView'
+import NotesView from './NotesView'
 
 function Dashboard(): React.JSX.Element {
   const [activeView, setActiveView] = useState('home')
@@ -14,12 +15,13 @@ function Dashboard(): React.JSX.Element {
         return <HistoryView />
       case 'style':
         return <StyleView />
+      case 'notes':
+        return <NotesView />
       case 'dictionary':
         return <DictionaryView />
       case 'settings':
         return <SettingsView />
       case 'snippets':
-      case 'notes':
       case 'help':
       default:
         return (

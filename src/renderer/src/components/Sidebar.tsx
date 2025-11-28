@@ -1,5 +1,6 @@
 import React from 'react'
 import wavyLines from '../assets/wavy-lines.svg'
+import appIcon from '../assets/app-icon.png'
 
 interface SidebarProps {
   activeView: string
@@ -41,9 +42,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps): React.JSX.Ele
 
       {/* Logo */}
       <div className="flex items-center gap-2 px-2 mb-8 relative z-10">
-        <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
-          <div className="w-3 h-3 bg-white rounded-full" />
-        </div>
+        <img src={appIcon} alt="Voqa Wisp" className="w-8 h-8 rounded-lg shadow-sm" />
         <span className="font-bold text-lg text-zinc-900">Voqa Wisp</span>
       </div>
 

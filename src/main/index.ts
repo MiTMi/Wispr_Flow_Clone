@@ -14,6 +14,7 @@ import * as fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook } from 'uiohook-napi'
 import { loadHistory, getStats, deleteHistoryItem } from './history'
+import { loadNotes, addNote, deleteNote, updateNote } from './notes'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText, Settings } from './openai'
 import 'dotenv/config'
@@ -24,14 +25,21 @@ let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const { width, height } = screen.getPrimaryDisplay().bounds
+  const { x: workAreaX, y: workAreaY, width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workArea
+
+  // Initial size for pill mode - increased height to accommodate tooltip
+  const width = 400
+  const height = 250 
+  // Center horizontally in work area, position at bottom of work area with padding
+  const x = Math.round(workAreaX + (workAreaWidth - width) / 2)
+  const y = Math.round(workAreaY + workAreaHeight - height) // Removed -20 padding
 
   mainWindow = new BrowserWindow({
-    width: width + 200, // Extra width to cover right side
-    height: height,
-    x: -100, // Force move left
-    y: 0,
-    show: false,
+    width,
+    height,
+    x,
+    y,
+    show: false, // Keep false initially, show in ready-to-show
     frame: false,
     transparent: true,
     resizable: true, // Allow programmatic resize via setBounds
@@ -48,14 +56,8 @@ function createWindow(): void {
   // Listen for display changes (resolution changes, monitor connect/disconnect)
   const updateWindowBounds = (): void => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      const { width, height } = screen.getPrimaryDisplay().bounds
-      console.log(`Updating window bounds with manual offset: ${width}x${height} at -100,0`)
-      mainWindow.setBounds({
-        x: -100,
-        y: 0,
-        width: width + 200,
-        height: height
-      })
+      // Re-center if in flow mode (simplified logic, ideally we track mode)
+      // For now, let the set-window-mode handler handle shifts
     }
   }
 
@@ -68,7 +70,9 @@ function createWindow(): void {
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
       // mainWindow.webContents.openDevTools()
-      // mainWindow.show()
+      mainWindow.show()
+      // START IN CLICK-THROUGH MODE
+      mainWindow.setIgnoreMouseEvents(true, { forward: true })
     }
   })
 
@@ -126,16 +130,48 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  // Hide Window IPC
+  // Hide Window IPC (Logical hide - stop recording/processing UI)
   ipcMain.on('hide-window', () => {
-    if (mainWindow && mainWindow.isVisible()) {
-      mainWindow.hide()
-      // Only hide the app if settings window is NOT open
-      // if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
-      //   app.hide()
-      // }
+    if (mainWindow) {
       mainWindow.webContents.send('window-hidden')
     }
+  })
+
+  // IPC for resizing window based on view
+  ipcMain.on('set-window-mode', (event, mode) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+
+    const { x: workAreaX, y: workAreaY, width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workArea
+
+    if (mode === 'flow') {
+      const width = 400
+      const height = 250
+      const x = Math.round(workAreaX + (workAreaWidth - width) / 2)
+      const y = Math.round(workAreaY + workAreaHeight - height) // Removed -20 padding
+      win.setBounds({ x, y, width, height })
+      win.setAlwaysOnTop(true, 'screen-saver')
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      // Enable click-through with forwarding
+      win.setIgnoreMouseEvents(true, { forward: true })
+    } else {
+      // Settings or other large views
+      const width = 1000
+      const height = 700
+      const x = Math.round(workAreaX + (workAreaWidth - width) / 2)
+      const y = Math.round(workAreaY + (workAreaHeight - height) / 2)
+      win.setBounds({ x, y, width, height })
+      win.setAlwaysOnTop(false) // Settings doesn't need to be always on top
+      win.center()
+      // Disable click-through for settings
+      win.setIgnoreMouseEvents(false)
+    }
+  })
+
+  // IPC for click-through transparency
+  ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    win?.setIgnoreMouseEvents(ignore, options)
   })
 
   // Audio Data Handler (Batch mode - OpenAI)
@@ -150,13 +186,8 @@ app.whenReady().then(() => {
       console.log('[Performance] Transcription complete:', text)
       console.timeEnd('Audio Processing')
 
-      // 2. Hide Window to return focus to previous app
-      if (mainWindow && mainWindow.isVisible()) {
-        mainWindow.hide()
-        // Only hide the app if settings window is NOT open
-        if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
-          app.hide()
-        }
+      // 2. Hide Window (Logical)
+      if (mainWindow) {
         mainWindow.webContents.send('window-hidden')
       }
 
@@ -165,18 +196,40 @@ app.whenReady().then(() => {
 
       // 4. Inject Text
       if (text) {
+        // Temporarily hide the app to yield focus to the previous application
+        if (process.platform === 'darwin') {
+          app.hide()
+        }
         await injectText(text)
       }
 
       const totalTime = performance.now() - startProcessing
       console.log(`[Performance] Total Main Process Time: ${totalTime.toFixed(2)}ms`)
 
-      // Notify renderer of completion (to reset state)
+      // Reset UI to idle state immediately
       if (mainWindow) {
-        mainWindow.webContents.send('processing-complete', totalTime)
+        mainWindow.webContents.send('reset-ui')
+        // Restore the pill window without stealing focus
+        // We wait a bit to ensure the paste has started
+        setTimeout(() => {
+          if (process.platform === 'darwin') {
+             // For macOS, we can't just 'show' without activating if the app was hidden.
+             // But app.hide() hides everything. 
+             // We need to unhide the app in background.
+             // This is tricky on macOS. mainWindow.showInactive() might bring app back.
+             app.show() // This brings it back but might focus it.
+             mainWindow.showInactive() 
+          } else {
+             mainWindow.showInactive()
+          }
+        }, 200)
       }
     } catch (error) {
       console.error('Error processing audio:', error)
+      // Ensure UI resets even on error
+      if (mainWindow) {
+        mainWindow.webContents.send('reset-ui')
+      }
     }
   })
   // Create Tray Icon
@@ -255,22 +308,17 @@ app.whenReady().then(() => {
 
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
-        if (!mainWindow?.isVisible()) {
-          ensureWindowMatchesDisplay() // Fix positioning before showing
-          mainWindow?.show()
-          mainWindow?.focus()
-          mainWindow?.webContents.send('window-shown')
-        }
+        // Just send signal, window is always visible
+        mainWindow?.webContents.send('window-shown')
+        mainWindow?.focus()
       }
     })
 
     uIOhook.on('keyup', (e) => {
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
-        if (mainWindow?.isVisible()) {
-          // Do NOT hide immediately. Tell renderer to stop recording.
-          mainWindow?.webContents.send('window-hidden')
-        }
+        // Send signal
+        mainWindow?.webContents.send('window-hidden')
       }
     })
 
@@ -382,6 +430,23 @@ app.whenReady().then(() => {
     deleteHistoryItem(id)
   })
 
+  // Notes Handlers
+  ipcMain.handle('get-notes', () => {
+    return loadNotes()
+  })
+
+  ipcMain.handle('add-note', (_, content) => {
+    return addNote(content)
+  })
+
+  ipcMain.handle('delete-note', (_, id) => {
+    deleteNote(id)
+  })
+
+  ipcMain.handle('update-note', (_, id, content) => {
+    updateNote(id, content)
+  })
+
   // IPC Handlers for Settings
   ipcMain.handle('get-settings', () => settings)
 
@@ -412,6 +477,13 @@ app.whenReady().then(() => {
     isRecordingKey = true
   })
 
+  // Track logical recording state in Main to handle Toggle Shortcut correctly
+  let isRecordingState = false
+
+  ipcMain.on('recording-state-changed', (_, isRecording) => {
+    isRecordingState = isRecording
+  })
+
   // Register Global Shortcut Helper
   const registerGlobalShortcut = () => {
     if (settings.triggerMode !== 'toggle') return
@@ -420,14 +492,13 @@ app.whenReady().then(() => {
       globalShortcut.unregisterAll() // Clear old ones
       globalShortcut.register(settings.hotkey, () => {
         if (mainWindow) {
-          if (mainWindow.isVisible()) {
-            // Do NOT hide immediately. Tell renderer to stop.
+          if (isRecordingState) {
+            // Stop
             mainWindow.webContents.send('window-hidden')
           } else {
-            ensureWindowMatchesDisplay() // Fix positioning before showing
-            mainWindow.show()
-            mainWindow.focus()
+            // Start
             mainWindow.webContents.send('window-shown')
+            mainWindow.focus() // Ensure focus for PTT
           }
         }
       })
