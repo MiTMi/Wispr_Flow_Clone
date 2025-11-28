@@ -1,11 +1,20 @@
 import React from 'react'
+import wavyLines from '../assets/wavy-lines.svg'
 
 interface SidebarProps {
   activeView: string
   onNavigate: (view: string) => void
 }
 
-const SidebarItem = ({ id, label, icon, active, onClick }: any) => (
+interface SidebarItemProps {
+  id: string
+  label: string
+  icon: React.ReactNode
+  active: boolean
+  onClick: (id: string) => void
+}
+
+const SidebarItem = ({ id, label, icon, active, onClick }: SidebarItemProps): React.JSX.Element => (
   <button
     onClick={() => onClick(id)}
     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
@@ -18,9 +27,20 @@ const SidebarItem = ({ id, label, icon, active, onClick }: any) => (
 
 export function Sidebar({ activeView, onNavigate }: SidebarProps): React.JSX.Element {
   return (
-    <div className="w-64 h-full bg-zinc-50 border-r border-zinc-200 flex flex-col p-4">
+    <div className="w-64 h-full bg-zinc-50 border-r border-zinc-200 flex flex-col p-4 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `url(${wavyLines})`,
+          backgroundSize: '100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'top left'
+        }}
+      />
+
       {/* Logo */}
-      <div className="flex items-center gap-2 px-2 mb-8">
+      <div className="flex items-center gap-2 px-2 mb-8 relative z-10">
         <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
           <div className="w-3 h-3 bg-white rounded-full" />
         </div>
@@ -28,7 +48,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps): React.JSX.Ele
       </div>
 
       {/* Navigation */}
-      <div className="space-y-1 flex-1">
+      <div className="space-y-1 flex-1 relative z-10">
         <SidebarItem
           id="home"
           label="Home"
@@ -146,7 +166,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps): React.JSX.Ele
       </div>
 
       {/* Footer */}
-      <div className="space-y-1 pt-4 border-t border-zinc-200">
+      <div className="space-y-1 pt-4 border-t border-zinc-200 relative z-10">
         <SidebarItem
           id="settings"
           label="Settings"

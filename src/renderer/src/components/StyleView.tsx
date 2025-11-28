@@ -11,7 +11,7 @@ function StyleView(): React.JSX.Element {
     })
   }, [])
 
-  const updateSetting = (key: string, value: any) => {
+  const updateSetting = (key: string, value: unknown): void => {
     window.electron.ipcRenderer.invoke('update-setting', key, value)
   }
 
@@ -29,6 +29,7 @@ function StyleView(): React.JSX.Element {
               {[
                 { id: 'polished', label: 'Polished', desc: 'Professional and clear' },
                 { id: 'casual', label: 'Casual', desc: 'Relaxed and friendly' },
+                { id: 'verbatim', label: 'Verbatim', desc: 'Exact transcription' },
                 { id: 'bullet-points', label: 'Bullet Points', desc: 'Concise lists' },
                 { id: 'summary', label: 'Summary', desc: 'Brief overview' }
               ].map((option) => (

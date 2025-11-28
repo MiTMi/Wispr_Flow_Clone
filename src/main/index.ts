@@ -6,7 +6,8 @@ import {
   globalShortcut,
   Tray,
   Menu,
-  nativeImage
+  nativeImage,
+  screen
 } from 'electron'
 import { join } from 'path'
 import * as fs from 'fs'
@@ -14,7 +15,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook } from 'uiohook-napi'
 import { loadHistory, getStats, deleteHistoryItem } from './history'
 import icon from '../../resources/icon.png?asset'
-import { processAudio, injectText } from './openai'
+import { processAudio, injectText, Settings } from './openai'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -22,7 +23,7 @@ let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const { width, height } = require('electron').screen.getPrimaryDisplay().bounds
+  const { width, height } = screen.getPrimaryDisplay().bounds
 
   mainWindow = new BrowserWindow({
     width: width + 200, // Extra width to cover right side
@@ -44,9 +45,7 @@ function createWindow(): void {
   })
 
   // Listen for display changes (resolution changes, monitor connect/disconnect)
-  const { screen } = require('electron')
-
-  const updateWindowBounds = () => {
+  const updateWindowBounds = (): void => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       const { width, height } = screen.getPrimaryDisplay().bounds
       console.log(`Updating window bounds with manual offset: ${width}x${height} at -100,0`)
@@ -90,7 +89,6 @@ function createWindow(): void {
 // This is critical for fixing positioning issues when resolution changes
 function ensureWindowMatchesDisplay(): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    const { screen } = require('electron')
     const { width, height } = screen.getPrimaryDisplay().bounds
     console.log(
       `[Display Fix] Ensuring window matches display with manual offset: ${width}x${height} at -100,0`
@@ -120,8 +118,8 @@ app.whenReady().then(() => {
 
   // Force Dock Icon on macOS
   if (process.platform === 'darwin' && app.dock) {
-    const dockIconPath = join(__dirname, '../../resources/icon.png')
-    app.dock.setIcon(nativeImage.createFromPath(dockIconPath))
+    app.dock.setIcon(nativeImage.createFromPath(icon))
+    app.dock.show()
   }
 
   // IPC test
@@ -132,9 +130,9 @@ app.whenReady().then(() => {
     if (mainWindow && mainWindow.isVisible()) {
       mainWindow.hide()
       // Only hide the app if settings window is NOT open
-      if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
-        app.hide()
-      }
+      // if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
+      //   app.hide()
+      // }
       mainWindow.webContents.send('window-hidden')
     }
   })
@@ -155,9 +153,9 @@ app.whenReady().then(() => {
       if (mainWindow && mainWindow.isVisible()) {
         mainWindow.hide()
         // Only hide the app if settings window is NOT open
-        if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
-          app.hide()
-        }
+        // if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
+        //   app.hide()
+        // }
         mainWindow.webContents.send('window-hidden')
       }
 
@@ -181,9 +179,11 @@ app.whenReady().then(() => {
     }
   })
   // Create Tray Icon
-  const trayIconPath = join(__dirname, '../../resources/tray-icon.png')
-  const image = nativeImage.createFromPath(trayIconPath)
-  tray = new Tray(image.resize({ width: 32, height: 32 })) // Larger size for better visibility
+  const image = nativeImage.createFromPath(icon)
+  if (process.platform === 'darwin') {
+    image.setTemplateImage(true)
+  }
+  tray = new Tray(image.resize({ width: 22, height: 22 })) // Standard size for macOS menu bar
   tray.setToolTip('Wispr Flow Clone')
 
   const contextMenu = Menu.buildFromTemplate([
@@ -198,7 +198,7 @@ app.whenReady().then(() => {
 
   // Settings Management
   const settingsPath = join(app.getPath('userData'), 'settings.json')
-  let settings = {
+  let settings: Settings = {
     hotkey: 'CommandOrControl+Shift+Space',
     triggerMode: 'toggle', // 'toggle' | 'hold'
     holdKey: null as number | null,
@@ -386,7 +386,7 @@ app.whenReady().then(() => {
   ipcMain.handle('get-settings', () => settings)
 
   ipcMain.handle('update-setting', (_, key, value) => {
-    // @ts-ignore
+    // @ts-ignore: Dynamic assignment to typed object
     settings[key] = value
     saveSettings()
 
@@ -441,7 +441,12 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    } else if (mainWindow && !mainWindow.isVisible()) {
+      ensureWindowMatchesDisplay()
+      mainWindow.show()
+    }
   })
 })
 
