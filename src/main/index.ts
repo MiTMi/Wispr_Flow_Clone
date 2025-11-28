@@ -19,6 +19,7 @@ import { processAudio, injectText, Settings } from './openai'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
+let settingsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 
 function createWindow(): void {
@@ -153,14 +154,14 @@ app.whenReady().then(() => {
       if (mainWindow && mainWindow.isVisible()) {
         mainWindow.hide()
         // Only hide the app if settings window is NOT open
-        // if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
-        //   app.hide()
-        // }
+        if (process.platform === 'darwin' && (!settingsWindow || !settingsWindow.isVisible())) {
+          app.hide()
+        }
         mainWindow.webContents.send('window-hidden')
       }
 
       // 3. Wait for focus to return (small delay)
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
       // 4. Inject Text
       if (text) {
@@ -279,8 +280,7 @@ app.whenReady().then(() => {
   }
 
   // Settings Window
-  let settingsWindow: BrowserWindow | null = null
-
+  
   const createSettingsWindow = () => {
     if (settingsWindow) {
       if (settingsWindow.isDestroyed()) {

@@ -139,10 +139,8 @@ RULES:
         const durationMs = (buffer.byteLength / 32000) * 1000 // Assuming 32000 bytes/sec for audio
         addHistoryEntry(formattedText, durationMs)
 
-        // 4. Inject Text
-        console.time('Text Injection')
-        await injectText(formattedText)
-        console.timeEnd('Text Injection')
+        // 4. Injection is handled by main process after window hide
+
 
         // Cleanup
         fs.unlinkSync(tempFilePath)
@@ -170,7 +168,11 @@ export async function injectText(text: string): Promise<void> {
 
             // 3. Trigger Paste (Cmd+V) using minimal AppleScript
             // We use 'osascript -e' to avoid file I/O
-            const script = `tell application "System Events" to key code 9 using command down`
+            // Simple Cmd+V with slight delay, relying on app.hide() in main process for focus switch
+            const script = `tell application "System Events"
+                delay 0.1
+                key code 9 using command down
+            end tell`
 
             exec(`osascript -e '${script}'`, (error) => {
                 if (error) {
@@ -178,6 +180,8 @@ export async function injectText(text: string): Promise<void> {
                     reject(error)
                 } else {
                     // 4. Restore clipboard after a short delay to ensure paste completes
+                    // COMMENTED OUT: Leaving text in clipboard so user can manual paste if needed
+                    /*
                     setTimeout(() => {
                         if (hasImage) {
                             clipboard.writeImage(previousImage)
@@ -186,6 +190,7 @@ export async function injectText(text: string): Promise<void> {
                         }
                         console.log('Clipboard restored')
                     }, 200)
+                    */
                     
                     resolve()
                 }
