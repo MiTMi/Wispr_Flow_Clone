@@ -3,12 +3,14 @@
 A macOS voice dictation app inspired by Wispr Flow.
 
 ## Features
+
 - **Global Shortcut**: Press `Cmd+Shift+Space` to toggle the floating bar.
 - **Voice Dictation**: Records your voice and transcribes it using OpenAI Whisper.
 - **AI Formatting**: Formats the text using GPT-4o to remove filler words and improve flow.
 - **Auto-Injection**: Automatically types the formatted text into the active application.
 
 ## Setup
+
 1.  Install dependencies:
     ```bash
     npm install
@@ -23,6 +25,7 @@ A macOS voice dictation app inspired by Wispr Flow.
     ```
 
 ## Usage
+
 1.  Run the app.
 2.  Focus on any text field (e.g., Notes, TextEdit, Browser).
 3.  Press `Cmd+Shift+Space`.

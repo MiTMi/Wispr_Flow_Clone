@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
 
-import Settings from './components/Settings'
 import ExamplesWindow from './components/ExamplesWindow'
 
 import Dashboard from './components/Dashboard'
@@ -175,13 +174,25 @@ function App(): React.JSX.Element {
         className="fixed bottom-10 pointer-events-none"
         style={{ left: '50%', transform: 'translateX(-50%)' }}
       >
-        <div className={`flex items-center gap-5 px-5 py-3 bg-black/90 backdrop-blur-xl rounded-full border border-zinc-800 shadow-2xl min-w-[300px] justify-between transition-all duration-300 pointer-events-auto ${isProcessing ? 'scale-105 border-blue-500/50' : ''}`}>
+        <div
+          className={`flex items-center gap-5 px-5 py-3 bg-black/90 backdrop-blur-xl rounded-full border border-zinc-800 shadow-2xl min-w-[300px] justify-between transition-all duration-300 pointer-events-auto ${isProcessing ? 'scale-105 border-blue-500/50' : ''}`}
+        >
           {/* Close Button */}
           <button
             onClick={handleCancel}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors group"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 group-hover:text-white">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-zinc-400 group-hover:text-white"
+            >
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
@@ -193,7 +204,11 @@ function App(): React.JSX.Element {
               // Processing Animation (Indeterminate Wave)
               <div className="flex gap-1 items-center h-full">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-1.5 bg-blue-500 rounded-full animate-pulse" style={{ height: '16px', animationDelay: `${i * 0.1}s` }}></div>
+                  <div
+                    key={i}
+                    className="w-1.5 bg-blue-500 rounded-full animate-pulse"
+                    style={{ height: '16px', animationDelay: `${i * 0.1}s` }}
+                  ></div>
                 ))}
               </div>
             ) : (
@@ -210,7 +225,9 @@ function App(): React.JSX.Element {
 
           {/* Status Indicator (Wrapped for centering) */}
           <div className="w-8 h-8 flex items-center justify-center">
-            <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-blue-500 animate-ping' : isListening ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+            <div
+              className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-blue-500 animate-ping' : isListening ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}
+            ></div>
           </div>
         </div>
       </div>

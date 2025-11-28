@@ -1,8 +1,17 @@
-import { app, shell, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  Tray,
+  Menu,
+  nativeImage
+} from 'electron'
 import { join } from 'path'
 import * as fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { uIOhook, UiohookKey } from 'uiohook-napi'
+import { uIOhook } from 'uiohook-napi'
 import { loadHistory, getStats, deleteHistoryItem } from './history'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText } from './openai'
@@ -13,8 +22,8 @@ let tray: Tray | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const { width, height, x, y } = require('electron').screen.getPrimaryDisplay().bounds
-  const overscan = 0 // Reset overscan logic, using manual offset
+  const { width, height } = require('electron').screen.getPrimaryDisplay().bounds
+
   mainWindow = new BrowserWindow({
     width: width + 200, // Extra width to cover right side
     height: height,
@@ -54,7 +63,6 @@ function createWindow(): void {
   screen.on('display-removed', updateWindowBounds)
   screen.on('display-metrics-changed', updateWindowBounds)
 
-
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -84,7 +92,9 @@ function ensureWindowMatchesDisplay(): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const { screen } = require('electron')
     const { width, height } = screen.getPrimaryDisplay().bounds
-    console.log(`[Display Fix] Ensuring window matches display with manual offset: ${width}x${height} at -100,0`)
+    console.log(
+      `[Display Fix] Ensuring window matches display with manual offset: ${width}x${height} at -100,0`
+    )
     mainWindow.setBounds({
       x: -100,
       y: 0,
@@ -152,7 +162,7 @@ app.whenReady().then(() => {
       }
 
       // 3. Wait for focus to return (small delay)
-      await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // 4. Inject Text
       if (text) {
@@ -177,7 +187,6 @@ app.whenReady().then(() => {
   tray.setToolTip('Wispr Flow Clone')
 
   const contextMenu = Menu.buildFromTemplate([
-
     { label: 'Settings...', click: () => createSettingsWindow() },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() }

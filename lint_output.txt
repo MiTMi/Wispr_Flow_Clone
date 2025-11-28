@@ -1,0 +1,91 @@
+
+> wispr-flow-clone@1.0.0 lint
+> eslint --cache .
+
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/main/index.ts
+   25:29  error  A `require()` style import is forbidden                                                                                                            @typescript-eslint/no-require-imports
+   47:22  error  A `require()` style import is forbidden                                                                                                            @typescript-eslint/no-require-imports
+   49:33  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+   93:24  error  A `require()` style import is forbidden                                                                                                            @typescript-eslint/no-require-imports
+  211:27  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+  228:27  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+  284:35  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+  327:35  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+  389:5   error  Include a description after the "@ts-ignore" directive to explain why the @ts-ignore is necessary. The description must be 3 characters or longer  @typescript-eslint/ban-ts-comment
+  416:37  error  Missing return type on function                                                                                                                    @typescript-eslint/explicit-function-return-type
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/main/openai.ts
+  33:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/App.tsx
+  132:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/Dashboard.tsx
+  11:28  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/DictionaryView.tsx
+  12:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:51  error  Missing return type on function           @typescript-eslint/explicit-function-return-type
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/ExamplesWindow.tsx
+  38:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  38:47  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  38:53  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  38:55  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  39:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  39:37  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  39:45  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  39:52  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  39:60  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  39:62  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  40:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  40:42  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  40:58  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  40:60  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  47:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  47:63  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  48:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  48:45  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:57  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  56:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  56:35  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  57:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  57:50  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  58:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  58:58  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/HistoryView.tsx
+  25:31  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  36:52  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  49:42  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  53:49  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  58:37  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  64:47  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+  87:85  error  Missing return type on function  @typescript-eslint/explicit-function-return-type
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/Settings.tsx
+   31:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   31:53  error  Missing return type on function           @typescript-eslint/explicit-function-return-type
+  128:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:51  error  Missing return type on function           @typescript-eslint/explicit-function-return-type
+  161:6   error  Missing return type on function           @typescript-eslint/explicit-function-return-type
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/SettingsView.tsx
+  102:103  warning  Insert `⏎····················`  prettier/prettier
+  105:1    warning  Delete `··`                     prettier/prettier
+  114:103  warning  Insert `⏎····················`  prettier/prettier
+  117:1    warning  Delete `··`                     prettier/prettier
+  129:93   warning  Insert `⏎····················`  prettier/prettier
+  132:1    warning  Delete `··`                     prettier/prettier
+  143:93   warning  Insert `⏎····················`  prettier/prettier
+  146:1    warning  Delete `··`                     prettier/prettier
+
+/Users/michaeltouboul/Antigravity_Projects/wispr-flow-clone/src/renderer/src/components/StyleView.tsx
+  41:80  warning  Insert `⏎····················`  prettier/prettier
+  44:1   warning  Delete `··`                     prettier/prettier
+
+✖ 63 problems (53 errors, 10 warnings)
+  0 errors and 10 warnings potentially fixable with the `--fix` option.
+
