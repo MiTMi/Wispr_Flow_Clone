@@ -316,6 +316,14 @@ app.whenReady().then(() => {
         return
       }
 
+      // Escape to Stop Recording
+      if (e.keycode === 1 && isRecordingState) {
+        if (mainWindow) {
+          mainWindow.webContents.send('window-hidden')
+        }
+        return
+      }
+
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
         // Just send signal, window is always visible
@@ -417,10 +425,6 @@ app.whenReady().then(() => {
 
   ipcMain.on('open-examples-window', () => {
     createExamplesWindow()
-  })
-
-  ipcMain.handle('start-key-recording', () => {
-    isRecordingKey = true
   })
 
   ipcMain.handle('stop-key-recording', () => {
