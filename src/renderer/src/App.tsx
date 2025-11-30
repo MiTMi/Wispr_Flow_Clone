@@ -4,8 +4,16 @@ import ExamplesWindow from './components/ExamplesWindow'
 
 import Dashboard from './components/Dashboard'
 
+// Helper to get initial view from hash (runs synchronously before first render)
+const getInitialView = (): string => {
+  const hash = window.location.hash
+  if (hash === '#/settings' || hash === '#settings') return 'settings'
+  if (hash === '#/examples' || hash === '#examples') return 'examples'
+  return 'flow'
+}
+
 function App(): React.JSX.Element {
-  const [currentView, setCurrentView] = useState('flow')
+  const [currentView, setCurrentView] = useState(getInitialView)
   const [isListening, setIsListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [audioData, setAudioData] = useState<number[]>(new Array(24).fill(2)) // 24 bars

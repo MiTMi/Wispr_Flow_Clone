@@ -338,9 +338,9 @@ app.whenReady().then(() => {
         return
       }
 
-      // PTT Logic - Always active regardless of triggerMode
-      // This allows users to use PTT key even when Toggle mode is selected
-      if (settings.holdKey === e.keycode && e.keycode !== ignorePTTKey) {
+      // PTT Logic - Only active when holdKey is explicitly configured
+      // Requires holdKey to be set (not null) and match the pressed key
+      if (settings.holdKey !== null && settings.holdKey === e.keycode && e.keycode !== ignorePTTKey) {
         // Ensure mainWindow is ready before sending
         if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('window-shown')
@@ -356,8 +356,8 @@ app.whenReady().then(() => {
         return
       }
 
-      // PTT Logic - Always active regardless of triggerMode
-      if (settings.holdKey === e.keycode) {
+      // PTT Logic - Only active when holdKey is explicitly configured
+      if (settings.holdKey !== null && settings.holdKey === e.keycode) {
         // Ensure mainWindow is ready before sending
         if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('window-hidden')
@@ -387,11 +387,17 @@ app.whenReady().then(() => {
       height: 700,
       title: 'Settings',
       resizable: true,
+      show: false, // Don't show until content is ready
       autoHideMenuBar: true,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false
       }
+    })
+
+    // Show window only after content is ready to prevent flicker
+    settingsWindow.once('ready-to-show', () => {
+      settingsWindow?.show()
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -430,11 +436,17 @@ app.whenReady().then(() => {
       height: 600,
       title: 'Custom Instruction Examples',
       resizable: false,
+      show: false, // Don't show until content is ready
       autoHideMenuBar: true,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false
       }
+    })
+
+    // Show window only after content is ready to prevent flicker
+    examplesWindow.once('ready-to-show', () => {
+      examplesWindow?.show()
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
