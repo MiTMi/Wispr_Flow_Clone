@@ -357,7 +357,8 @@ app.whenReady().then(() => {
 
     uIOhook.start()
   } catch (error) {
-
+    console.error('Failed to start uiohook:', error)
+  }
 
   // Settings Window
   
