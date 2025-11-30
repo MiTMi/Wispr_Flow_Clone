@@ -299,7 +299,6 @@ app.whenReady().then(() => {
 
   // Language options for tray menu (all Whisper-supported languages)
   const languages = [
-    { code: 'auto', label: '✨ Auto-Detect' },
     { code: 'en', label: '🇺🇸 English' },
     { code: 'zh', label: '🇨🇳 Chinese' },
     { code: 'de', label: '🇩🇪 German' },
@@ -309,11 +308,9 @@ app.whenReady().then(() => {
     { code: 'fr', label: '🇫🇷 French' },
     { code: 'ja', label: '🇯🇵 Japanese' },
     { code: 'pt', label: '🇵🇹 Portuguese' },
-    { code: 'tr', label: '🇹🇷 Turkish' },
     { code: 'pl', label: '🇵🇱 Polish' },
     { code: 'ca', label: '🇪🇸 Catalan' },
     { code: 'nl', label: '🇳🇱 Dutch' },
-    { code: 'ar', label: '🇸🇦 Arabic' },
     { code: 'sv', label: '🇸🇪 Swedish' },
     { code: 'it', label: '🇮🇹 Italian' },
     { code: 'id', label: '🇮🇩 Indonesian' },
@@ -341,7 +338,6 @@ app.whenReady().then(() => {
     { code: 'cy', label: '🏴󠁧󠁢󠁷󠁬󠁳󠁿 Welsh' },
     { code: 'sk', label: '🇸🇰 Slovak' },
     { code: 'te', label: '🇮🇳 Telugu' },
-    { code: 'fa', label: '🇮🇷 Persian' },
     { code: 'lv', label: '🇱🇻 Latvian' },
     { code: 'bn', label: '🇧🇩 Bengali' },
     { code: 'sr', label: '🇷🇸 Serbian' },
