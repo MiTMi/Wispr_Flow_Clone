@@ -3,14 +3,32 @@ import React, { useEffect, useState } from 'react'
 function SettingsView(): React.JSX.Element {
   const [startOnLogin, setStartOnLogin] = useState(false)
   const [triggerMode, setTriggerMode] = useState('toggle')
-  const [hotkey, setHotkey] = useState('Super+M')
+  const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space') // Internal Electron format
+
+  // Detect if running on macOS
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+
+  // Convert Electron accelerator format to user-friendly display
+  const formatHotkeyForDisplay = (accelerator: string): string => {
+    return accelerator
+      .replace(/CommandOrControl/g, isMac ? '⌘' : 'Ctrl')
+      .replace(/Control/g, isMac ? '⌃' : 'Ctrl')
+      .replace(/Alt/g, isMac ? '⌥' : 'Alt')
+      .replace(/Shift/g, isMac ? '⇧' : 'Shift')
+      .replace(/\+/g, ' + ')
+  }
   const [holdKey, setHoldKey] = useState<number | null>(null)
-  
+
   // Recording States
   const [isRecording, setIsRecording] = useState(false)
   const [displayHotkey, setDisplayHotkey] = useState('') // For visual feedback during recording
-  
+
   const [isRecordingHoldKey, setIsRecordingHoldKey] = useState(false)
+
+  // Helper function to update settings
+  const updateSetting = (key: string, value: unknown): void => {
+    window.electron.ipcRenderer.invoke('update-setting', key, value)
+  }
 
   const getKeyName = (keycode: number | null): string => {
     if (!keycode) return 'Not Set'
@@ -58,35 +76,56 @@ function SettingsView(): React.JSX.Element {
   useEffect(() => {
     if (!isRecording) return
 
-    const pressedKeys = new Set<string>()
+    // Track pressed keys by their code (more reliable than key)
+    const pressedCodes = new Set<string>()
     let lastValidCombo: string[] = []
+    let finalizeTimeout: ReturnType<typeof setTimeout> | null = null
 
-    const getElectronKey = (e: KeyboardEvent): string | null => {
-      const key = e.key
-      // Handle modifiers more explicitly
-      if (key === 'Meta' || key === 'OS') return 'CommandOrControl'
-      if (key === 'Control') return 'Control'
-      if (key === 'Alt') return 'Alt'
-      if (key === 'Shift') return 'Shift'
-      
-      // Handle special keys
-      if (key === ' ') return 'Space'
-      if (key === 'Escape') return 'Escape'
-      if (key === 'ArrowUp') return 'Up'
-      if (key === 'ArrowDown') return 'Down'
-      if (key === 'ArrowLeft') return 'Left'
-      if (key === 'ArrowRight') return 'Right'
-      if (key === 'Enter') return 'Return'
-      if (key === 'Backspace') return 'Backspace'
-      if (key === 'Tab') return 'Tab'
-      
-      // Standard keys: Only use if single character (A, B, 1, etc.)
-      // Note: e.key can be "Dead", "Process" etc. ignore those.
-      if (key.length === 1) return key.toUpperCase()
-      
-      // Function keys
-      if (/^F\d+$/.test(key)) return key
-      
+    // Map e.code to Electron accelerator format
+    const getElectronKeyFromCode = (code: string): string | null => {
+      // Modifiers
+      if (code === 'MetaLeft' || code === 'MetaRight') return 'CommandOrControl'
+      if (code === 'ControlLeft' || code === 'ControlRight') return 'Control'
+      if (code === 'AltLeft' || code === 'AltRight') return 'Alt'
+      if (code === 'ShiftLeft' || code === 'ShiftRight') return 'Shift'
+
+      // Special keys
+      if (code === 'Space') return 'Space'
+      if (code === 'Escape') return 'Escape'
+      if (code === 'ArrowUp') return 'Up'
+      if (code === 'ArrowDown') return 'Down'
+      if (code === 'ArrowLeft') return 'Left'
+      if (code === 'ArrowRight') return 'Right'
+      if (code === 'Enter' || code === 'NumpadEnter') return 'Return'
+      if (code === 'Backspace') return 'Backspace'
+      if (code === 'Tab') return 'Tab'
+      if (code === 'Delete') return 'Delete'
+
+      // Letter keys (KeyA -> A)
+      if (code.startsWith('Key')) return code.slice(3).toUpperCase()
+
+      // Digit keys (Digit1 -> 1)
+      if (code.startsWith('Digit')) return code.slice(5)
+
+      // Numpad digits
+      if (code.startsWith('Numpad') && code.length === 7) return code.slice(6)
+
+      // Function keys (F1-F12)
+      if (/^F\d+$/.test(code)) return code
+
+      // Other common keys
+      if (code === 'Minus') return '-'
+      if (code === 'Equal') return '='
+      if (code === 'BracketLeft') return '['
+      if (code === 'BracketRight') return ']'
+      if (code === 'Backslash') return '\\'
+      if (code === 'Semicolon') return ';'
+      if (code === 'Quote') return "'"
+      if (code === 'Comma') return ','
+      if (code === 'Period') return '.'
+      if (code === 'Slash') return '/'
+      if (code === 'Backquote') return '`'
+
       return null
     }
 
@@ -98,64 +137,115 @@ function SettingsView(): React.JSX.Element {
       return [...mods, ...others]
     }
 
+    const tryFinalize = (): void => {
+      if (lastValidCombo.length === 0) return
+
+      const modifiers = ['CommandOrControl', 'Control', 'Alt', 'Shift']
+      const hasNonModifier = lastValidCombo.some((k) => !modifiers.includes(k))
+
+      // Require at least 3 keys total (e.g., Cmd + Shift + Space)
+      if (hasNonModifier && lastValidCombo.length >= 3) {
+        // Valid combo with at least one non-modifier key and 3+ keys total
+        const finalHotkey = lastValidCombo.join('+')
+        setHotkey(finalHotkey)
+        updateSetting('hotkey', finalHotkey)
+        stopRecording(false)
+      }
+    }
+
     const handleKeyDown = (e: KeyboardEvent): void => {
       e.preventDefault()
       e.stopPropagation()
 
-      const key = getElectronKey(e)
-      if (!key) return
+      // Clear any pending finalize
+      if (finalizeTimeout) {
+        clearTimeout(finalizeTimeout)
+        finalizeTimeout = null
+      }
 
-      if (key === 'Escape' && pressedKeys.size === 0) {
-        stopRecording()
+      const electronKey = getElectronKeyFromCode(e.code)
+      if (!electronKey) return
+
+      // Escape cancels recording
+      if (electronKey === 'Escape') {
+        stopRecording(true)
         return
       }
 
-      pressedKeys.add(key)
-      const currentCombo = sortKeys(Array.from(pressedKeys))
-      
+      // Track by code for reliable up/down matching
+      pressedCodes.add(e.code)
+
+      // Build display combo from all pressed keys
+      const electronKeys = Array.from(pressedCodes)
+        .map((c) => getElectronKeyFromCode(c))
+        .filter((k): k is string => k !== null)
+
+      // Deduplicate (e.g., ShiftLeft and ShiftRight both map to Shift)
+      const uniqueKeys = [...new Set(electronKeys)]
+      const currentCombo = sortKeys(uniqueKeys)
+
       // Update visual feedback
       setDisplayHotkey(currentCombo.join('+'))
       lastValidCombo = currentCombo
+
+      // Check if we have a valid combo (non-modifier + at least 3 keys) - if so, schedule finalization
+      const modifiers = ['CommandOrControl', 'Control', 'Alt', 'Shift']
+      const hasNonModifier = currentCombo.some((k) => !modifiers.includes(k))
+
+      if (hasNonModifier && currentCombo.length >= 3) {
+        // Finalize after a short delay (allows for additional key presses)
+        finalizeTimeout = setTimeout(() => {
+          tryFinalize()
+        }, 500)
+      }
     }
 
     const handleKeyUp = (e: KeyboardEvent): void => {
       e.preventDefault()
       e.stopPropagation()
 
-      const key = getElectronKey(e)
-      if (key) pressedKeys.delete(key)
+      // Remove by code
+      pressedCodes.delete(e.code)
 
-      if (pressedKeys.size === 0) {
-        if (lastValidCombo.length > 0) {
-          const modifiers = ['CommandOrControl', 'Control', 'Alt', 'Shift']
-          const hasNonModifier = lastValidCombo.some((k) => !modifiers.includes(k))
-
-          if (hasNonModifier) {
-            const finalHotkey = lastValidCombo.join('+')
-            setHotkey(finalHotkey)
-            window.electron.ipcRenderer.invoke('update-setting', 'hotkey', finalHotkey)
-          } else {
-            // Cancel if only modifiers were pressed
-            window.electron.ipcRenderer.invoke('get-settings').then((settings) => {
-              if (settings.hotkey) setHotkey(settings.hotkey)
-            })
-          }
+      // When all keys are released and we have a valid combo, finalize immediately
+      if (pressedCodes.size === 0 && lastValidCombo.length > 0) {
+        if (finalizeTimeout) {
+          clearTimeout(finalizeTimeout)
+          finalizeTimeout = null
         }
-        stopRecording()
+        tryFinalize()
       }
     }
 
-    const stopRecording = () => {
-        setIsRecording(false)
-        window.electron.ipcRenderer.send('resume-global-shortcut')
+    const stopRecording = (cancelled: boolean): void => {
+      if (finalizeTimeout) {
+        clearTimeout(finalizeTimeout)
+        finalizeTimeout = null
+      }
+      setIsRecording(false)
+      setDisplayHotkey('')
+      window.electron.ipcRenderer.send('resume-global-shortcut')
+
+      if (cancelled) {
+        // Restore original hotkey from settings
+        window.electron.ipcRenderer.invoke('get-settings').then((settings) => {
+          if (settings.hotkey) setHotkey(settings.hotkey)
+        })
+      }
     }
 
-    const handleBlur = () => {
-      // If user clicks away, cancel recording
-      stopRecording()
-      window.electron.ipcRenderer.invoke('get-settings').then((settings) => {
-        if (settings.hotkey) setHotkey(settings.hotkey)
-      })
+    const handleBlur = (): void => {
+      // If window loses focus and we have a valid combo (3+ keys), save it
+      if (lastValidCombo.length >= 3) {
+        const modifiers = ['CommandOrControl', 'Control', 'Alt', 'Shift']
+        const hasNonModifier = lastValidCombo.some((k) => !modifiers.includes(k))
+        if (hasNonModifier) {
+          tryFinalize()
+          return
+        }
+      }
+      // Otherwise cancel
+      stopRecording(true)
     }
 
     // Use window capture to ensure we get events
@@ -164,6 +254,9 @@ function SettingsView(): React.JSX.Element {
     window.addEventListener('blur', handleBlur)
 
     return (): void => {
+      if (finalizeTimeout) {
+        clearTimeout(finalizeTimeout)
+      }
       window.removeEventListener('keydown', handleKeyDown, { capture: true })
       window.removeEventListener('keyup', handleKeyUp, { capture: true })
       window.removeEventListener('blur', handleBlur)
@@ -266,9 +359,11 @@ function SettingsView(): React.JSX.Element {
                       : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
                     }`}
                 >
-                  {isRecording ? (displayHotkey || 'Press any key combination...') : hotkey}
+                  {isRecording
+                    ? (displayHotkey ? formatHotkeyForDisplay(displayHotkey) : 'Press 3 keys (e.g., ⌘ + ⇧ + Space)...')
+                    : formatHotkeyForDisplay(hotkey)}
                 </button>
-                <p className="text-xs text-zinc-500">Click to record a new shortcut.</p>
+                <p className="text-xs text-zinc-500">Click to record a new shortcut (requires 3 keys).</p>
               </div>
             ) : (
               <div className="space-y-2">

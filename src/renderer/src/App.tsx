@@ -123,11 +123,13 @@ function App(): React.JSX.Element {
     return (): void => window.removeEventListener('hashchange', checkHash)
   }, [])
 
+  // Register IPC listeners once on mount - they should always be active
   useEffect(() => {
-    if (currentView !== 'flow') return
-
     const onShow = (): void => {
-      startRecording()
+      // Only start recording if we're in flow view
+      if (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#/flow') {
+        startRecording()
+      }
     }
 
     const onHide = (): void => {
@@ -147,12 +149,15 @@ function App(): React.JSX.Element {
     window.electron.ipcRenderer.on('window-hidden', onHide)
     window.electron.ipcRenderer.on('reset-ui', onReset)
 
+    // Signal to main process that renderer is ready
+    console.log('[Renderer] IPC listeners registered, ready to receive events')
+
     return (): void => {
       window.electron.ipcRenderer.removeAllListeners('window-shown')
       window.electron.ipcRenderer.removeAllListeners('window-hidden')
       window.electron.ipcRenderer.removeAllListeners('reset-ui')
     }
-  }, [currentView])
+  }, []) // Empty dependency array - register once on mount
 
   // Sync recording state with Main for toggle logic
   useEffect(() => {

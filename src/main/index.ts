@@ -22,6 +22,7 @@ import 'dotenv/config'
 let mainWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+let mainWindowReady = false // Track when renderer is ready to receive IPC
 
 function createWindow(): void {
   // Create the browser window.
@@ -74,6 +75,11 @@ function createWindow(): void {
       // START IN CLICK-THROUGH MODE
       mainWindow.setIgnoreMouseEvents(true, { forward: true })
     }
+  })
+
+  // Mark window as ready when DOM is loaded
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindowReady = true
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -331,13 +337,15 @@ app.whenReady().then(() => {
 
       // PTT Logic
       if (
-        settings.triggerMode === 'hold' && 
-        settings.holdKey === e.keycode && 
+        settings.triggerMode === 'hold' &&
+        settings.holdKey === e.keycode &&
         e.keycode !== ignorePTTKey
       ) {
-        // Just send signal, window is always visible
-        mainWindow?.webContents.send('window-shown')
-        mainWindow?.focus()
+        // Ensure mainWindow is ready before sending
+        if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('window-shown')
+          mainWindow.focus()
+        }
       }
     })
 
@@ -350,8 +358,10 @@ app.whenReady().then(() => {
 
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
-        // Send signal
-        mainWindow?.webContents.send('window-hidden')
+        // Ensure mainWindow is ready before sending
+        if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('window-hidden')
+        }
       }
     })
 
