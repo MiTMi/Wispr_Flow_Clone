@@ -126,6 +126,7 @@ function App(): React.JSX.Element {
   // Register IPC listeners once on mount - they should always be active
   useEffect(() => {
     const onShow = (): void => {
+      console.log('[IPC] window-shown received, hash:', window.location.hash)
       // Only start recording if we're in flow view
       if (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#/flow') {
         startRecording()
@@ -133,6 +134,7 @@ function App(): React.JSX.Element {
     }
 
     const onHide = (): void => {
+      console.log('[IPC] window-hidden received')
       // Key released or stop requested -> Switch to processing state
       setIsListening(false)
       setIsProcessing(true)
@@ -140,6 +142,7 @@ function App(): React.JSX.Element {
     }
 
     const onReset = (): void => {
+      console.log('[IPC] reset-ui received')
       // Processing complete -> Reset to idle state
       setIsListening(false)
       setIsProcessing(false)

@@ -264,9 +264,7 @@ app.whenReady().then(() => {
 
   tray.setContextMenu(contextMenu)
 
-  createWindow()
-
-  // Settings Management
+  // Settings Management - LOAD BEFORE creating window
   const settingsPath = join(app.getPath('userData'), 'settings.json')
   let settings: Settings = {
     hotkey: 'CommandOrControl+Shift+Space',
@@ -284,6 +282,7 @@ app.whenReady().then(() => {
         const data = fs.readFileSync(settingsPath, 'utf-8')
         const loaded = JSON.parse(data)
         settings = { ...settings, ...loaded }
+        console.log('[Settings] Loaded settings:', settings)
 
         // Sync login item settings
         if (typeof settings.startOnLogin === 'boolean') {
@@ -303,7 +302,11 @@ app.whenReady().then(() => {
     }
   }
 
+  // Load settings FIRST
   loadSettings()
+
+  // Then create window
+  createWindow()
 
   // uiohook Integration
   let isRecordingKey = false
@@ -335,12 +338,9 @@ app.whenReady().then(() => {
         return
       }
 
-      // PTT Logic
-      if (
-        settings.triggerMode === 'hold' &&
-        settings.holdKey === e.keycode &&
-        e.keycode !== ignorePTTKey
-      ) {
+      // PTT Logic - Always active regardless of triggerMode
+      // This allows users to use PTT key even when Toggle mode is selected
+      if (settings.holdKey === e.keycode && e.keycode !== ignorePTTKey) {
         // Ensure mainWindow is ready before sending
         if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('window-shown')
@@ -356,8 +356,8 @@ app.whenReady().then(() => {
         return
       }
 
-      // PTT Logic
-      if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
+      // PTT Logic - Always active regardless of triggerMode
+      if (settings.holdKey === e.keycode) {
         // Ensure mainWindow is ready before sending
         if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('window-hidden')
@@ -515,18 +515,13 @@ app.whenReady().then(() => {
       app.setLoginItemSettings({ openAtLogin: value })
     }
 
-    if (key === 'hotkey' && settings.triggerMode === 'toggle') {
+    // Always re-register global shortcut when hotkey changes
+    if (key === 'hotkey') {
       globalShortcut.unregisterAll()
       registerGlobalShortcut()
     }
-
-    if (key === 'triggerMode') {
-      if (value === 'toggle') {
-        registerGlobalShortcut()
-      } else {
-        globalShortcut.unregisterAll()
-      }
-    }
+    // triggerMode change no longer affects shortcut registration
+    // Both Toggle shortcut and PTT key are always active
   })
 
   // Track logical recording state in Main to handle Toggle Shortcut correctly
@@ -539,29 +534,39 @@ app.whenReady().then(() => {
   })
 
   // Register Global Shortcut Helper
+  // Always registers the Toggle shortcut regardless of triggerMode
+  // This allows users to use Toggle shortcut even when PTT mode is selected
   const registerGlobalShortcut = () => {
-    if (settings.triggerMode !== 'toggle') return
+    console.log(`[Shortcut] registerGlobalShortcut called, hotkey=${settings.hotkey}`)
 
     try {
       globalShortcut.unregisterAll() // Clear old ones
-      globalShortcut.register(settings.hotkey, () => {
-        if (mainWindow) {
+      const success = globalShortcut.register(settings.hotkey, () => {
+        // Ensure mainWindow is ready before sending IPC
+        if (mainWindowReady && mainWindow && !mainWindow.isDestroyed()) {
           if (isRecordingState) {
             // Stop
             mainWindow.webContents.send('window-hidden')
           } else {
             // Start
             mainWindow.webContents.send('window-shown')
-            mainWindow.focus() // Ensure focus for PTT
+            mainWindow.focus()
           }
+        } else {
+          console.log('[Shortcut] mainWindow not ready, ignoring shortcut')
         }
       })
+      console.log(`[Shortcut] Registered global shortcut: ${settings.hotkey}, success=${success}`)
     } catch (error) {
       console.error('Failed to register shortcut:', error)
     }
   }
 
-  registerGlobalShortcut()
+  // Register shortcut after a small delay to ensure everything is initialized
+  setTimeout(() => {
+    console.log('[Shortcut] Delayed registration starting...')
+    registerGlobalShortcut()
+  }, 100)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
