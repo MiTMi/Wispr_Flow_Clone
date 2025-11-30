@@ -309,6 +309,9 @@ app.whenReady().then(() => {
         settings.holdKey = e.keycode
         saveSettings()
         isRecordingKey = false
+        // Prevent immediate trigger from autorepeat
+        ignorePTTKey = e.keycode
+        
         // Resume global shortcuts
         registerGlobalShortcut()
         // Notify renderer
@@ -327,7 +330,11 @@ app.whenReady().then(() => {
       }
 
       // PTT Logic
-      if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
+      if (
+        settings.triggerMode === 'hold' && 
+        settings.holdKey === e.keycode && 
+        e.keycode !== ignorePTTKey
+      ) {
         // Just send signal, window is always visible
         mainWindow?.webContents.send('window-shown')
         mainWindow?.focus()
@@ -335,6 +342,12 @@ app.whenReady().then(() => {
     })
 
     uIOhook.on('keyup', (e) => {
+      // Clear ignore flag on release
+      if (ignorePTTKey === e.keycode) {
+        ignorePTTKey = null
+        return
+      }
+
       // PTT Logic
       if (settings.triggerMode === 'hold' && settings.holdKey === e.keycode) {
         // Send signal
@@ -344,8 +357,7 @@ app.whenReady().then(() => {
 
     uIOhook.start()
   } catch (error) {
-    console.error('Failed to start uiohook:', error)
-  }
+
 
   // Settings Window
   
@@ -508,6 +520,8 @@ app.whenReady().then(() => {
 
   // Track logical recording state in Main to handle Toggle Shortcut correctly
   let isRecordingState = false
+  // Track key to ignore (to prevent PTT auto-triggering after recording due to repeat)
+  let ignorePTTKey: number | null = null
 
   ipcMain.on('recording-state-changed', (_, isRecording) => {
     isRecordingState = isRecording
