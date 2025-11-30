@@ -397,6 +397,39 @@ app.whenReady().then(() => {
     { code: 'su', label: '🇮🇩 Sundanese' }
   ]
 
+  // Helper to format hotkey for display (macOS style)
+  const formatHotkeyForDisplay = (accelerator: string): string => {
+    const isMac = process.platform === 'darwin'
+    return accelerator
+      .replace(/CommandOrControl/g, isMac ? '⌘' : 'Ctrl')
+      .replace(/Control/g, isMac ? '⌃' : 'Ctrl')
+      .replace(/Alt/g, isMac ? '⌥' : 'Alt')
+      .replace(/Shift/g, isMac ? '⇧' : 'Shift')
+      .replace(/\+/g, isMac ? '' : '+')
+  }
+
+  // Helper to get PTT key name from keycode
+  const getKeyName = (keycode: number | null): string => {
+    if (!keycode) return 'Not Set'
+    const map: Record<number, string> = {
+      56: '⌥ Left Option',
+      3640: '⌥ Right Option',
+      29: '⌃ Left Control',
+      3613: '⌃ Right Control',
+      42: '⇧ Left Shift',
+      54: '⇧ Right Shift',
+      3675: '⌘ Left Command',
+      3676: '⌘ Right Command',
+      57: 'Space',
+      1: 'Escape',
+      28: 'Enter',
+      14: 'Backspace',
+      15: 'Tab',
+      58: 'Caps Lock'
+    }
+    return map[keycode] || `Key ${keycode}`
+  }
+
   // Build and set tray context menu
   const buildTrayMenu = () => {
     const languageSubmenu = languages.map((lang) => ({
@@ -410,7 +443,23 @@ app.whenReady().then(() => {
       }
     }))
 
+    // Shortcuts submenu
+    const shortcutsSubmenu = [
+      {
+        label: `Toggle: ${formatHotkeyForDisplay(settings.hotkey)}`,
+        click: () => createSettingsWindow('shortcuts')
+      },
+      {
+        label: `Push-to-Talk: ${getKeyName(settings.holdKey)}`,
+        click: () => createSettingsWindow('shortcuts')
+      }
+    ]
+
     const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Shortcuts',
+        submenu: shortcutsSubmenu
+      },
       {
         label: 'Language',
         submenu: languageSubmenu
@@ -442,9 +491,11 @@ app.whenReady().then(() => {
         isRecordingKey = false
         // Prevent immediate trigger from autorepeat
         ignorePTTKey = e.keycode
-        
+
         // Resume global shortcuts
         registerGlobalShortcut()
+        // Update tray menu with new PTT key
+        buildTrayMenu()
         // Notify renderer
         if (settingsWindow) {
           settingsWindow.webContents.send('key-recorded', e.keycode)
@@ -494,11 +545,20 @@ app.whenReady().then(() => {
 
   // Settings Window
   
-  const createSettingsWindow = () => {
+  const createSettingsWindow = (tab?: string) => {
+    // Build the hash route - default to 'settings', or 'settings/shortcuts' if specified
+    const hashRoute = tab ? `settings/${tab}` : 'settings'
+
     if (settingsWindow) {
       if (settingsWindow.isDestroyed()) {
         settingsWindow = null
       } else {
+        // If window exists, navigate to the requested tab
+        if (tab && is.dev && process.env['ELECTRON_RENDERER_URL']) {
+          settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/${hashRoute}`)
+        } else if (tab) {
+          settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: hashRoute })
+        }
         settingsWindow.focus()
         return
       }
@@ -523,9 +583,9 @@ app.whenReady().then(() => {
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/settings`)
+      settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/${hashRoute}`)
     } else {
-      settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'settings' })
+      settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: hashRoute })
     }
 
     // Handle closing properly
@@ -653,6 +713,12 @@ app.whenReady().then(() => {
     if (key === 'hotkey') {
       globalShortcut.unregisterAll()
       registerGlobalShortcut()
+      buildTrayMenu() // Update tray menu to show new hotkey
+    }
+
+    // Update tray menu when PTT key changes
+    if (key === 'holdKey') {
+      buildTrayMenu()
     }
     // triggerMode change no longer affects shortcut registration
     // Both Toggle shortcut and PTT key are always active

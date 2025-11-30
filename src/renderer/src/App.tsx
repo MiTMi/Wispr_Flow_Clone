@@ -7,7 +7,8 @@ import Dashboard from './components/Dashboard'
 // Helper to get initial view from hash (runs synchronously before first render)
 const getInitialView = (): string => {
   const hash = window.location.hash
-  if (hash === '#/settings' || hash === '#settings') return 'settings'
+  // Match any settings route (e.g., #/settings, #settings, #/settings/shortcuts)
+  if (hash.includes('settings')) return 'settings'
   if (hash === '#/examples' || hash === '#examples') return 'examples'
   return 'flow'
 }
@@ -117,7 +118,8 @@ function App(): React.JSX.Element {
     // Check hash for routing
     const checkHash = (): void => {
       const hash = window.location.hash
-      if (hash === '#/settings' || hash === '#settings') {
+      // Match any settings route (e.g., #/settings, #settings, #/settings/shortcuts)
+      if (hash.includes('settings')) {
         setCurrentView('settings')
       } else if (hash === '#/examples' || hash === '#examples') {
         setCurrentView('examples')

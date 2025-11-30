@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import HistoryView from './HistoryView'
 import StyleView from './StyleView'
@@ -6,8 +6,18 @@ import DictionaryView from './DictionaryView'
 import SettingsView from './SettingsView'
 import NotesView from './NotesView'
 
+// Helper to get initial view from hash (e.g., #/settings/shortcuts -> 'settings')
+const getInitialTab = (): string => {
+  const hash = window.location.hash
+  // Check for specific tab routes like #/settings/shortcuts or #settings/shortcuts
+  if (hash.includes('/shortcuts') || hash.includes('/settings')) {
+    return 'settings'
+  }
+  return 'home'
+}
+
 function Dashboard(): React.JSX.Element {
-  const [activeView, setActiveView] = useState('home')
+  const [activeView, setActiveView] = useState(getInitialTab)
 
   const renderContent = () => {
     switch (activeView) {
