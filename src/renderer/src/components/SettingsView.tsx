@@ -106,7 +106,7 @@ function SettingsView(): React.JSX.Element {
       if (!key) return
 
       if (key === 'Escape' && pressedKeys.size === 0) {
-        setIsRecording(false)
+        stopRecording()
         return
       }
 
@@ -141,13 +141,18 @@ function SettingsView(): React.JSX.Element {
             })
           }
         }
-        setIsRecording(false)
+        stopRecording()
       }
+    }
+
+    const stopRecording = () => {
+        setIsRecording(false)
+        window.electron.ipcRenderer.send('resume-global-shortcut')
     }
 
     const handleBlur = () => {
       // If user clicks away, cancel recording
-      setIsRecording(false)
+      stopRecording()
       window.electron.ipcRenderer.invoke('get-settings').then((settings) => {
         if (settings.hotkey) setHotkey(settings.hotkey)
       })
@@ -166,6 +171,7 @@ function SettingsView(): React.JSX.Element {
   }, [isRecording])
 
   const startRecording = () => {
+    window.electron.ipcRenderer.send('pause-global-shortcut')
     setDisplayHotkey('') // Reset visual state
     setIsRecording(true)
   }

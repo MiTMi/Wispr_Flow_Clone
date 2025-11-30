@@ -309,6 +309,8 @@ app.whenReady().then(() => {
         settings.holdKey = e.keycode
         saveSettings()
         isRecordingKey = false
+        // Resume global shortcuts
+        registerGlobalShortcut()
         // Notify renderer
         if (settingsWindow) {
           settingsWindow.webContents.send('key-recorded', e.keycode)
@@ -427,8 +429,25 @@ app.whenReady().then(() => {
     createExamplesWindow()
   })
 
+  ipcMain.handle('start-key-recording', () => {
+    isRecordingKey = true
+    // Pause global shortcuts to prevent conflicts while recording PTT
+    globalShortcut.unregisterAll()
+  })
+
   ipcMain.handle('stop-key-recording', () => {
     isRecordingKey = false
+    // Resume global shortcuts
+    registerGlobalShortcut()
+  })
+
+  // Handlers for Renderer's Local Shortcut Recording
+  ipcMain.on('pause-global-shortcut', () => {
+    globalShortcut.unregisterAll()
+  })
+
+  ipcMain.on('resume-global-shortcut', () => {
+    registerGlobalShortcut()
   })
 
   // History Handlers
