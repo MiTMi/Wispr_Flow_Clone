@@ -174,6 +174,17 @@ app.whenReady().then(() => {
     win?.setIgnoreMouseEvents(ignore, options)
   })
 
+  ipcMain.handle('transcribe-buffer', async (_, buffer) => {
+    try {
+      console.log('[Performance] Processing note audio buffer...')
+      const text = await processAudio(buffer, settings)
+      return text
+    } catch (error) {
+      console.error('Error transcribing note buffer:', error)
+      return ''
+    }
+  })
+
   // Audio Data Handler (Batch mode - OpenAI)
   ipcMain.on('audio-data', async (_, buffer) => {
     try {
@@ -191,11 +202,12 @@ app.whenReady().then(() => {
         mainWindow.webContents.send('window-hidden')
       }
 
-      // 3. Wait for focus to return (small delay)
-      await new Promise((resolve) => setTimeout(resolve, 300))
-
-      // 4. Inject Text
+      // 3. Handle Text
       if (text) {
+        // Case B: General Flow (Inject Text)
+        // Wait for focus to return
+        await new Promise((resolve) => setTimeout(resolve, 300))
+
         // Temporarily hide the app to yield focus to the previous application
         if (process.platform === 'darwin') {
           app.hide()
@@ -209,20 +221,18 @@ app.whenReady().then(() => {
       // Reset UI to idle state immediately
       if (mainWindow) {
         mainWindow.webContents.send('reset-ui')
-        // Restore the pill window without stealing focus
-        // We wait a bit to ensure the paste has started
-        setTimeout(() => {
-          if (process.platform === 'darwin') {
-             // For macOS, we can't just 'show' without activating if the app was hidden.
-             // But app.hide() hides everything. 
-             // We need to unhide the app in background.
-             // This is tricky on macOS. mainWindow.showInactive() might bring app back.
-             app.show() // This brings it back but might focus it.
-             mainWindow.showInactive() 
-          } else {
-             mainWindow.showInactive()
-          }
-        }, 200)
+        
+        // Restore pill if we hid the app (Only for General Flow)
+        if (text) {
+             setTimeout(() => {
+                if (process.platform === 'darwin') {
+                   app.show()
+                   mainWindow?.showInactive()
+                } else {
+                   mainWindow?.showInactive()
+                }
+             }, 200)
+        }
       }
     } catch (error) {
       console.error('Error processing audio:', error)
@@ -471,10 +481,6 @@ app.whenReady().then(() => {
         globalShortcut.unregisterAll()
       }
     }
-  })
-
-  ipcMain.handle('start-key-recording', () => {
-    isRecordingKey = true
   })
 
   // Track logical recording state in Main to handle Toggle Shortcut correctly

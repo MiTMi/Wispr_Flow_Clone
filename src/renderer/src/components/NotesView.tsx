@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useRecorder } from '../hooks/useRecorder'
 
 interface NoteItem {
   id: string
@@ -19,10 +20,36 @@ function NotesView(): React.JSX.Element {
   // Edit States
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+  
+  // Recording State
+  const { isRecording, startRecording, stopRecording } = useRecorder()
+  const [isTranscribing, setIsTranscribing] = useState(false)
 
   useEffect(() => {
     loadNotes()
   }, [])
+
+  const toggleRecording = async () => {
+      if (isRecording) {
+          const blob = await stopRecording()
+          if (blob) {
+              setIsTranscribing(true)
+              try {
+                  const buffer = await blob.arrayBuffer()
+                  const text = await window.electron.ipcRenderer.invoke('transcribe-buffer', buffer)
+                  if (text) {
+                      setInputValue(prev => prev + (prev ? ' ' : '') + text)
+                  }
+              } catch (error) {
+                  console.error("Transcription failed", error)
+              } finally {
+                  setIsTranscribing(false)
+              }
+          }
+      } else {
+          await startRecording()
+      }
+  }
 
   const loadNotes = async () => {
     const data = await window.electron.ipcRenderer.invoke('get-notes')
@@ -96,13 +123,29 @@ function NotesView(): React.JSX.Element {
             placeholder="Take a quick note with your voice"
             className="w-full h-32 p-6 pr-16 bg-white border border-zinc-200 rounded-2xl resize-none focus:outline-none focus:border-zinc-300 focus:ring-0 text-zinc-700 placeholder:text-zinc-400 text-lg shadow-sm"
           />
-          <button className="absolute right-4 bottom-4 p-3 bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors text-white">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-              <line x1="12" y1="19" x2="12" y2="23"></line>
-              <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
+          <button 
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            className={`absolute right-4 bottom-4 p-3 rounded-full transition-all text-white ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : isTranscribing ? 'bg-blue-500 cursor-wait' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+          >
+            {isTranscribing ? (
+                // Spinner
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            ) : isRecording ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="6" y="6" width="12" height="12" fill="currentColor" stroke="none"></rect>
+                </svg>
+            ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            )}
           </button>
         </div>
 
