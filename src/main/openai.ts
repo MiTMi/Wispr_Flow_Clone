@@ -202,9 +202,9 @@ export async function injectText(text: string): Promise<void> {
 
             // 3. Trigger Paste (Cmd+V) using minimal AppleScript
             // We use 'osascript -e' to avoid file I/O
-            // Simple Cmd+V with slight delay, relying on app.hide() in main process for focus switch
+            // Aggressively reduced delay to 0.01s (10ms) for testing
             const script = `tell application "System Events"
-                delay 0.1
+                delay 0.01
                 key code 9 using command down
             end tell`
 

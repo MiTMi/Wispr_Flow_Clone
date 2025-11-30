@@ -211,8 +211,8 @@ app.whenReady().then(() => {
       // 3. Handle Text
       if (text) {
         // Case B: General Flow (Inject Text)
-        // Wait for focus to return
-        await new Promise((resolve) => setTimeout(resolve, 300))
+        // Wait for focus to return (aggressively reduced to 10ms for testing)
+        await new Promise((resolve) => setTimeout(resolve, 10))
 
         // Temporarily hide the app to yield focus to the previous application
         if (process.platform === 'darwin') {
