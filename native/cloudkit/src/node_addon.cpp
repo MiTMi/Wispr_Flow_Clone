@@ -2,6 +2,14 @@
 #include "cloudkit_bridge.h"
 #include <string>
 
+// Helper function to convert Napi::Object to JSON string
+std::string ObjectToJSON(Napi::Env env, Napi::Object obj) {
+    Napi::Object JSON = env.Global().Get("JSON").As<Napi::Object>();
+    Napi::Function stringify = JSON.Get("stringify").As<Napi::Function>();
+    Napi::String result = stringify.Call(JSON, { obj }).As<Napi::String>();
+    return result.Utf8Value();
+}
+
 class CloudKitAddon : public Napi::ObjectWrap<CloudKitAddon> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports) {
@@ -15,10 +23,6 @@ public:
             InstanceMethod("fetchAllNotes", &CloudKitAddon::FetchAllNotes),
             InstanceMethod("deleteNote", &CloudKitAddon::DeleteNote)
         });
-
-        Napi::FunctionReference* constructor = new Napi::FunctionReference();
-        *constructor = Napi::Persistent(func);
-        env.SetInstanceData(constructor);
 
         exports.Set("CloudKitManager", func);
         return exports;
@@ -39,31 +43,6 @@ public:
 private:
     void* cloudKitManager;
 
-    // Helper class for async operations
-    class SaveSettingsWorker : public Napi::AsyncWorker {
-    public:
-        SaveSettingsWorker(Napi::Function& callback, void* manager, const std::string& jsonSettings)
-            : Napi::AsyncWorker(callback), manager(manager), jsonSettings(jsonSettings), success(false) {}
-
-        void Execute() override {
-            cloudkit_save_settings(manager, jsonSettings.c_str(), [](bool s, const char* e) {
-                // Note: This callback runs on a different thread
-                // We need to handle this properly in a production app
-            });
-        }
-
-        void OnOK() override {
-            Napi::HandleScope scope(Env());
-            Callback().Call({Env().Null(), Napi::Boolean::New(Env(), success)});
-        }
-
-    private:
-        void* manager;
-        std::string jsonSettings;
-        bool success;
-        std::string errorMsg;
-    };
-
     Napi::Value SaveSettings(const Napi::CallbackInfo& info) {
         Napi::Env env = info.Env();
 
@@ -73,7 +52,7 @@ private:
         }
 
         Napi::Object settingsObj = info[0].As<Napi::Object>();
-        std::string jsonSettings = Napi::JSON::Stringify(env, settingsObj).Utf8Value();
+        std::string jsonSettings = ObjectToJSON(env, settingsObj);
 
         auto promise = Napi::Promise::Deferred::New(env);
 
@@ -109,7 +88,7 @@ private:
         }
 
         Napi::Object itemObj = info[0].As<Napi::Object>();
-        std::string jsonItem = Napi::JSON::Stringify(env, itemObj).Utf8Value();
+        std::string jsonItem = ObjectToJSON(env, itemObj);
 
         auto promise = Napi::Promise::Deferred::New(env);
 
@@ -164,7 +143,7 @@ private:
         }
 
         Napi::Object noteObj = info[0].As<Napi::Object>();
-        std::string jsonNote = Napi::JSON::Stringify(env, noteObj).Utf8Value();
+        std::string jsonNote = ObjectToJSON(env, noteObj);
 
         auto promise = Napi::Promise::Deferred::New(env);
 

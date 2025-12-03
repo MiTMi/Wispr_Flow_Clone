@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import type { SyncStatus } from '../../../preload/index.d'
 
 export function SyncSettings() {

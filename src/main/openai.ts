@@ -216,13 +216,8 @@ When you detect a SEQUENCE of numbered items being dictated (3 or more consecuti
 export async function injectText(text: string): Promise<void> {
     return new Promise((resolve, reject) => {
         try {
-            // 1. Save current clipboard content
-            const previousText = clipboard.readText()
-            const previousImage = clipboard.readImage()
-            // Check if we have an image (non-empty)
-            const hasImage = !previousImage.isEmpty()
-
-            // 2. Set clipboard instantly using Electron API
+            // 1. Set clipboard instantly using Electron API
+            // Note: Previous clipboard restore functionality was removed
             clipboard.writeText(text)
 
             // 3. Trigger Paste (Cmd+V) using minimal AppleScript
