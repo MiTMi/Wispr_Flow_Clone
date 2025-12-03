@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: app.mit.wissper
 productName: wispr-flow-clone
 directories:
   buildResources: build
@@ -9,8 +9,10 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - 'native/cloudkit/build/Release/**'
 asarUnpack:
   - resources/**
+  - 'native/cloudkit/build/Release/**'
 win:
   executableName: wispr-flow-clone
 nsis:
@@ -20,6 +22,9 @@ nsis:
   createDesktopShortcut: always
 mac:
   entitlementsInherit: build/entitlements.mac.plist
+  entitlements: build/entitlements.mac.plist
+  hardenedRuntime: true
+  identity: "Apple Development: michael.tubul@gmail.com (X4VTA8BYAW)"
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
