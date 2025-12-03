@@ -183,7 +183,7 @@ When you detect a SEQUENCE of numbered items being dictated (3 or more consecuti
                     },
                     { role: 'user', content: rawText }
                 ],
-                model: 'llama-3.3-70b-versatile' // Smart formatting
+                model: 'moonshotai/kimi-k2-instruct-0905' // Testing Moonshot AI Kimi for formatting
             })
             console.timeEnd('Groq Formatting')
 
