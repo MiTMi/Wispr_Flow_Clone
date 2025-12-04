@@ -4,8 +4,8 @@
   "description": "Native CloudKit module for Wissper",
   "main": "build/Release/cloudkit.node",
   "scripts": {
-    "build": "node-gyp rebuild",
-    "clean": "node-gyp clean"
+    "build": "./scripts/build.sh",
+    "clean": "node-gyp clean && rm -f src/wispr-flow-clone-Swift.h"
   },
   "dependencies": {
     "node-addon-api": "^7.0.0"
