@@ -5,13 +5,13 @@
   "main": "build/Release/cloudkit.node",
   "scripts": {
     "build": "./scripts/build.sh",
-    "clean": "node-gyp clean && rm -f src/wispr-flow-clone-Swift.h"
+    "clean": "node-gyp clean && rm -f src/wispr-flow-clone-Swift.h",
+    "install": "echo 'Skipping automatic build - run npm run build manually'"
   },
   "dependencies": {
     "node-addon-api": "^7.0.0"
   },
   "devDependencies": {
     "node-gyp": "^10.0.0"
-  },
-  "gypfile": true
+  }
 }
