@@ -2,14 +2,19 @@ appId: app.mit.wissper
 productName: wispr-flow-clone
 directories:
   buildResources: build
+  output: dist
 files:
+  - 'out/**/*'
+  - 'package.json'
+  - 'node_modules/**/*'
+  - 'resources/**'
+  - 'native/cloudkit/build/Release/**'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - 'native/cloudkit/build/Release/**'
 asarUnpack:
   - resources/**
   - 'native/cloudkit/build/Release/**'
