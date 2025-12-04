@@ -12,6 +12,7 @@ import CloudKit
         self.privateDB = container.privateCloudDatabase
         self.deviceId = UUID().uuidString
         super.init()
+        print("[CloudKit] Initialized with container: \(containerIdentifier)")
     }
 
     // MARK: - Settings Operations

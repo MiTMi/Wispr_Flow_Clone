@@ -122,7 +122,19 @@ export class CloudKitSyncManager {
   public async enableSync(): Promise<void> {
     try {
       const cloudkitNative = this.loadNativeModule()
-      this.cloudKitManager = new cloudkitNative.CloudKitManager(this.CONTAINER_ID)
+
+      // Wrap the CloudKitManager initialization in a try-catch since it can crash
+      // if the app doesn't have proper entitlements (common in dev mode)
+      try {
+        this.cloudKitManager = new cloudkitNative.CloudKitManager(this.CONTAINER_ID)
+      } catch (initError) {
+        const errorMsg = 'CloudKit initialization failed. In development mode, the app needs to be signed with entitlements. Please run "npm run build:mac" and test with the built app instead.'
+        console.error('[CloudKit]', errorMsg, initError)
+        this.syncStatus.lastError = errorMsg
+        this.saveSyncStatus()
+        throw new Error(errorMsg)
+      }
+
       this.syncStatus.enabled = true
       this.syncStatus.lastError = null
       this.saveSyncStatus()
