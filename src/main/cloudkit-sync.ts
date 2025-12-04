@@ -35,7 +35,7 @@ export class CloudKitSyncManager {
 
     // Try to load native module
     try {
-      const cloudkitNative = require(join(__dirname, '../../native/cloudkit/build/Release/cloudkit.node'))
+      const cloudkitNative = this.loadNativeModule()
       if (this.syncStatus.enabled && cloudkitNative) {
         try {
           this.cloudKitManager = new cloudkitNative.CloudKitManager(this.CONTAINER_ID)
@@ -50,6 +50,30 @@ export class CloudKitSyncManager {
       console.log('[CloudKit] Native module not available:', error)
       // This is expected if the module hasn't been built yet
     }
+  }
+
+  private loadNativeModule(): any {
+    // Try multiple possible paths for dev and production modes
+    const possiblePaths = [
+      // Production: packaged app
+      join(__dirname, '../../native/cloudkit/build/Release/cloudkit.node'),
+      // Development: from out/main/
+      join(app.getAppPath(), 'native/cloudkit/build/Release/cloudkit.node'),
+      // Development: from project root
+      join(process.cwd(), 'native/cloudkit/build/Release/cloudkit.node')
+    ]
+
+    for (const path of possiblePaths) {
+      try {
+        const module = require(path)
+        console.log('[CloudKit] Loaded native module from:', path)
+        return module
+      } catch (error) {
+        // Continue to next path
+      }
+    }
+
+    throw new Error('CloudKit native module not found in any expected location')
   }
 
   // MARK: - Sync Status Management
@@ -97,7 +121,7 @@ export class CloudKitSyncManager {
 
   public async enableSync(): Promise<void> {
     try {
-      const cloudkitNative = require(join(__dirname, '../../native/cloudkit/build/Release/cloudkit.node'))
+      const cloudkitNative = this.loadNativeModule()
       this.cloudKitManager = new cloudkitNative.CloudKitManager(this.CONTAINER_ID)
       this.syncStatus.enabled = true
       this.syncStatus.lastError = null
