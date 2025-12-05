@@ -1,12 +1,25 @@
 import React, { useEffect, useState } from 'react'
 
 function StyleView(): React.JSX.Element {
-  const [style, setStyle] = useState('polished')
+  const [style, setStyle] = useState('smart')
   const [language, setLanguage] = useState('auto')
 
   useEffect(() => {
     window.electron.ipcRenderer.invoke('get-settings').then((settings) => {
-      if (settings.style) setStyle(settings.style)
+      // Migrate old styles to 'smart'
+      const currentStyle = settings.style
+      if (currentStyle && currentStyle !== 'verbatim') {
+        setStyle('smart')
+        // Update backend to smart if it's using an old style
+        if (
+          currentStyle !== 'smart' &&
+          ['polished', 'casual', 'bullet-points', 'summary'].includes(currentStyle)
+        ) {
+          updateSetting('style', 'smart')
+        }
+      } else {
+        setStyle(currentStyle || 'smart')
+      }
       if (settings.language) setLanguage(settings.language)
     })
   }, [])
@@ -18,20 +31,27 @@ function StyleView(): React.JSX.Element {
   return (
     <div className="flex-1 h-full bg-white overflow-y-auto">
       <div className="max-w-2xl mx-auto p-10">
-        <h1 className="text-3xl font-bold text-zinc-900 mb-2">Style & Tone</h1>
-        <p className="text-zinc-500 mb-10">Customize how Flow formats your text.</p>
+        <h1 className="text-3xl font-bold text-zinc-900 mb-2">Formatting</h1>
+        <p className="text-zinc-500 mb-10">
+          Choose how Flow processes your dictation.
+        </p>
 
         <div className="space-y-8">
           {/* Style Selector */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-zinc-700">Writing Style</label>
-            <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm font-medium text-zinc-700">Formatting Mode</label>
+            <div className="grid grid-cols-1 gap-3">
               {[
-                { id: 'polished', label: 'Polished', desc: 'Professional and clear' },
-                { id: 'casual', label: 'Casual', desc: 'Relaxed and friendly' },
-                { id: 'verbatim', label: 'Verbatim', desc: 'Exact transcription' },
-                { id: 'bullet-points', label: 'Bullet Points', desc: 'Concise lists' },
-                { id: 'summary', label: 'Summary', desc: 'Brief overview' }
+                {
+                  id: 'smart',
+                  label: '✨ Smart Formatting (Recommended)',
+                  desc: 'Automatically detects context and applies intelligent formatting: cleans up stutters, removes false starts, formats lists, and structures emails/messages naturally.'
+                },
+                {
+                  id: 'verbatim',
+                  label: 'Verbatim',
+                  desc: 'Exact word-for-word transcription with no formatting or corrections applied.'
+                }
               ].map((option) => (
                 <button
                   key={option.id}
@@ -39,18 +59,18 @@ function StyleView(): React.JSX.Element {
                     setStyle(option.id)
                     updateSetting('style', option.id)
                   }}
-                  className={`p-4 rounded-xl border text-left transition-all ${style === option.id
+                  className={`p-5 rounded-xl border text-left transition-all ${style === option.id
                       ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500'
                       : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
                     }`}
                 >
                   <div
-                    className={`font-medium mb-1 ${style === option.id ? 'text-purple-900' : 'text-zinc-900'}`}
+                    className={`font-medium mb-2 ${style === option.id ? 'text-purple-900' : 'text-zinc-900'}`}
                   >
                     {option.label}
                   </div>
                   <div
-                    className={`text-xs ${style === option.id ? 'text-purple-700' : 'text-zinc-500'}`}
+                    className={`text-sm leading-relaxed ${style === option.id ? 'text-purple-700' : 'text-zinc-500'}`}
                   >
                     {option.desc}
                   </div>

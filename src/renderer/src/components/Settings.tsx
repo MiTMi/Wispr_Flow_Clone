@@ -8,7 +8,7 @@ function Settings(): React.JSX.Element {
   const [triggerMode, setTriggerMode] = useState<'toggle' | 'hold'>('toggle')
   const [holdKey, setHoldKey] = useState<number | null>(null)
   const [startOnLogin, setStartOnLogin] = useState(false)
-  const [style, setStyle] = useState('polished')
+  const [style, setStyle] = useState('smart')
   const [language, setLanguage] = useState('auto')
   const [customInstructions, setCustomInstructions] = useState('')
 
@@ -22,7 +22,22 @@ function Settings(): React.JSX.Element {
       if (settings.triggerMode) setTriggerMode(settings.triggerMode)
       if (settings.holdKey) setHoldKey(settings.holdKey)
       if (settings.startOnLogin !== undefined) setStartOnLogin(settings.startOnLogin)
-      if (settings.style) setStyle(settings.style)
+
+      // Migrate old styles to 'smart'
+      const currentStyle = settings.style
+      if (currentStyle && currentStyle !== 'verbatim') {
+        setStyle('smart')
+        // Update backend to smart if it's using an old style
+        if (
+          currentStyle !== 'smart' &&
+          ['polished', 'casual', 'bullet-points', 'bullet', 'summary'].includes(currentStyle)
+        ) {
+          updateSetting('style', 'smart')
+        }
+      } else {
+        setStyle(currentStyle || 'smart')
+      }
+
       if (settings.language) setLanguage(settings.language)
       if (settings.customInstructions) setCustomInstructions(settings.customInstructions)
     })
@@ -313,15 +328,13 @@ function Settings(): React.JSX.Element {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <h2 className="text-2xl font-semibold mb-6">AI Personality</h2>
 
-              {/* Style & Tone */}
+              {/* Formatting Mode */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-zinc-400">Style & Tone</label>
-                <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-medium text-zinc-400">Formatting Mode</label>
+                <div className="grid grid-cols-1 gap-3">
                   {[
-                    { id: 'polished', label: 'Polished', desc: 'Fixes grammar, professional' },
-                    { id: 'casual', label: 'Casual', desc: 'Verbatim, relaxed vibe' },
-                    { id: 'bullet', label: 'Bullet Points', desc: 'Converts to a list' },
-                    { id: 'summary', label: 'Summary', desc: 'Concise paragraph' }
+                    { id: 'smart', label: '✨ Smart Formatting', desc: 'Auto-detects context, cleans stutters, formats lists & emails' },
+                    { id: 'verbatim', label: 'Verbatim', desc: 'Exact word-for-word transcription, no formatting' }
                   ].map((opt) => (
                     <button
                       key={opt.id}
