@@ -229,6 +229,7 @@ export async function injectText(text: string): Promise<void> {
     return new Promise((resolve, reject) => {
         try {
             // 1. Set clipboard instantly using Electron API
+            // Note: Previous clipboard restore functionality was removed
             clipboard.writeText(text)
 
             // 2. Trigger Paste (Cmd+V) using minimal AppleScript

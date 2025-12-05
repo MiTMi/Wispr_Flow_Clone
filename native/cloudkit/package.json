@@ -1,0 +1,17 @@
+{
+  "name": "wissper-cloudkit-native",
+  "version": "1.0.0",
+  "description": "Native CloudKit module for Wissper",
+  "main": "build/Release/cloudkit.node",
+  "scripts": {
+    "build": "./scripts/build.sh",
+    "clean": "node-gyp clean && rm -f src/wispr-flow-clone-Swift.h",
+    "install": "echo 'Skipping automatic build - run npm run build manually'"
+  },
+  "dependencies": {
+    "node-addon-api": "^7.0.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0"
+  }
+}
