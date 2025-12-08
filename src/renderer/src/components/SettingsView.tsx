@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { SyncSettings } from './SyncSettings'
 
 function SettingsView(): React.JSX.Element {
   const [startOnLogin, setStartOnLogin] = useState(false)
@@ -385,14 +384,6 @@ function SettingsView(): React.JSX.Element {
                 <p className="text-xs text-zinc-500">Click to record the key you want to hold.</p>
               </div>
             )}
-          </section>
-
-          {/* iCloud Sync */}
-          <section className="space-y-6">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2">
-              iCloud Sync
-            </h2>
-            <SyncSettings />
           </section>
         </div>
       </div>

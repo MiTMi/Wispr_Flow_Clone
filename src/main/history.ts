@@ -2,7 +2,6 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import { syncManager } from './cloudkit-sync'
 
 export interface HistoryItem {
   id: string
@@ -72,9 +71,6 @@ export const addHistoryEntry = async (text: string, durationMs: number): Promise
 
   saveHistory(history)
 
-  // Sync to CloudKit
-  await syncManager.syncHistoryItem(newItem)
-
   return newItem
 }
 
@@ -113,7 +109,4 @@ export const deleteHistoryItem = async (id: string): Promise<void> => {
   let history = loadHistory()
   history = history.filter((item) => item.id !== id)
   saveHistory(history)
-
-  // Delete from CloudKit
-  await syncManager.deleteHistoryItem(id)
 }

@@ -12,19 +12,7 @@
     <key>com.apple.security.device.audio-input</key>
     <true/>
 
-    <!-- CloudKit entitlements -->
-    <key>com.apple.developer.icloud-container-identifiers</key>
-    <array>
-      <string>iCloud.app.mit.wissper</string>
-    </array>
-    <key>com.apple.developer.icloud-services</key>
-    <array>
-      <string>CloudKit</string>
-    </array>
-    <key>com.apple.developer.ubiquity-kvstore-identifier</key>
-    <string>$(TeamIdentifierPrefix)app.mit.wissper</string>
-
-    <!-- Network access for CloudKit -->
+    <!-- Network access for API calls -->
     <key>com.apple.security.network.client</key>
     <true/>
   </dict>

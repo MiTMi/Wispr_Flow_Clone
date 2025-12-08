@@ -17,7 +17,6 @@ import { loadHistory, getStats, deleteHistoryItem } from './history'
 import { loadNotes, addNote, deleteNote, updateNote } from './notes'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText, Settings } from './openai'
-import { syncManager } from './cloudkit-sync'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -279,16 +278,6 @@ app.whenReady().then(async () => {
         console.log('[Settings] Loaded local settings:', settings)
       }
 
-      // If sync enabled, fetch and merge remote settings
-      if (syncManager.isSyncEnabled()) {
-        const remoteSettings = await syncManager.fetchSettings()
-        if (remoteSettings) {
-          // Last-write-wins: remote overwrites local
-          settings = { ...settings, ...remoteSettings }
-          console.log('[Settings] Merged remote settings')
-        }
-      }
-
       // Sync login item settings
       if (typeof settings.startOnLogin === 'boolean') {
         app.setLoginItemSettings({ openAtLogin: settings.startOnLogin })
@@ -302,9 +291,6 @@ app.whenReady().then(async () => {
     try {
       // Save locally first
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
-
-      // Trigger CloudKit sync (debounced)
-      await syncManager.syncSettings(settings)
     } catch (error) {
       console.error('Failed to save settings:', error)
     }
@@ -738,34 +724,6 @@ app.whenReady().then(async () => {
     }
     // triggerMode change no longer affects shortcut registration
     // Both Toggle shortcut and PTT key are always active
-  })
-
-  // CloudKit Sync Handlers
-  ipcMain.handle('get-sync-status', () => {
-    return syncManager.getSyncStatus()
-  })
-
-  ipcMain.handle('enable-sync', async () => {
-    try {
-      await syncManager.enableSync()
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: String(error) }
-    }
-  })
-
-  ipcMain.handle('disable-sync', () => {
-    syncManager.disableSync()
-    return { success: true }
-  })
-
-  ipcMain.handle('manual-sync', async () => {
-    try {
-      await syncManager.performFullSync()
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: String(error) }
-    }
   })
 
   // Track logical recording state in Main to handle Toggle Shortcut correctly

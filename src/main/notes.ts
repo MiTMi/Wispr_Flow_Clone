@@ -2,7 +2,6 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import { syncManager } from './cloudkit-sync'
 
 export interface NoteItem {
   id: string
@@ -53,9 +52,6 @@ export const addNote = async (content: string): Promise<NoteItem> => {
 
   saveNotes(notes)
 
-  // Sync to CloudKit
-  await syncManager.syncNote(newItem)
-
   return newItem
 }
 
@@ -63,9 +59,6 @@ export const deleteNote = async (id: string): Promise<void> => {
   let notes = loadNotes()
   notes = notes.filter((item) => item.id !== id)
   saveNotes(notes)
-
-  // Delete from CloudKit
-  await syncManager.deleteNote(id)
 }
 
 export const updateNote = async (id: string, content: string): Promise<void> => {
@@ -75,8 +68,5 @@ export const updateNote = async (id: string, content: string): Promise<void> => 
     notes[index].content = content
     notes[index].timestamp = Date.now()
     saveNotes(notes)
-
-    // Sync to CloudKit
-    await syncManager.syncNote(notes[index])
   }
 }
