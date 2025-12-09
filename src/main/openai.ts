@@ -3,6 +3,7 @@ import { addHistoryEntry } from './history'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import crypto from 'crypto'
 import { exec } from 'child_process'
 import { clipboard } from 'electron'
 import dotenv from 'dotenv'
@@ -31,6 +32,27 @@ export interface Settings {
     language: string
     customInstructions: string
     dictionaryEntries?: DictionaryEntry[]
+}
+
+/**
+ * Securely delete a file by overwriting with random data before unlinking
+ */
+function secureDelete(filePath: string): void {
+    try {
+        const stats = fs.statSync(filePath)
+        const randomData = crypto.randomBytes(stats.size)
+        fs.writeFileSync(filePath, randomData)
+        fs.unlinkSync(filePath)
+        console.log('[Security] Securely deleted temp file:', filePath)
+    } catch (error) {
+        console.error('[Security] Failed to securely delete file:', error)
+        // Fallback to regular delete
+        try {
+            fs.unlinkSync(filePath)
+        } catch (e) {
+            console.error('[Security] Failed to delete file:', e)
+        }
+    }
 }
 
 function getOpenAI(): OpenAI {
@@ -213,8 +235,8 @@ CONTEXT DETECTION GUIDELINES:
         // 4. Injection is handled by main process after window hide
 
 
-        // Cleanup
-        fs.unlinkSync(tempFilePath)
+        // Cleanup - secure deletion
+        secureDelete(tempFilePath)
 
         return formattedText
     } catch (error) {

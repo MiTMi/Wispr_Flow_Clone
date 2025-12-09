@@ -4,6 +4,10 @@ function SettingsView(): React.JSX.Element {
   const [startOnLogin, setStartOnLogin] = useState(false)
   const [triggerMode, setTriggerMode] = useState('toggle')
   const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space') // Internal Electron format
+  const [keyMessage, setKeyMessage] = useState<{
+    type: 'success' | 'error' | 'info'
+    text: string
+  } | null>(null)
 
   // Detect if running on macOS
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -279,6 +283,76 @@ function SettingsView(): React.JSX.Element {
     }
   }
 
+  const handleExportKey = async () => {
+    try {
+      const result = await window.electron.exportEncryptionKey()
+
+      if (result.success && result.key) {
+        // Copy key to clipboard
+        navigator.clipboard.writeText(result.key)
+
+        setKeyMessage({
+          type: 'success',
+          text: `Encryption key copied to clipboard! Keep this key safe and secure. Anyone with this key can decrypt your data.`
+        })
+
+        // Clear message after 10 seconds
+        setTimeout(() => setKeyMessage(null), 10000)
+      } else {
+        setKeyMessage({
+          type: 'error',
+          text: `Failed to export key: ${result.error || 'Unknown error'}`
+        })
+        setTimeout(() => setKeyMessage(null), 5000)
+      }
+    } catch (error) {
+      setKeyMessage({
+        type: 'error',
+        text: `Failed to export key: ${String(error)}`
+      })
+      setTimeout(() => setKeyMessage(null), 5000)
+    }
+  }
+
+  const handleImportKey = async () => {
+    const key = prompt(
+      'Paste your encryption key:\n\n⚠️ WARNING: This will replace your current encryption key. Make sure you have the correct key from a previous export.'
+    )
+
+    if (!key || key.trim() === '') {
+      setKeyMessage({
+        type: 'info',
+        text: 'Import cancelled - no key provided'
+      })
+      setTimeout(() => setKeyMessage(null), 3000)
+      return
+    }
+
+    try {
+      const result = await window.electron.importEncryptionKey(key.trim())
+
+      if (result.success) {
+        setKeyMessage({
+          type: 'success',
+          text: 'Encryption key imported successfully! Your data will now be decrypted with this key.'
+        })
+        setTimeout(() => setKeyMessage(null), 5000)
+      } else {
+        setKeyMessage({
+          type: 'error',
+          text: `Failed to import key: ${result.error || 'Invalid key format or length'}`
+        })
+        setTimeout(() => setKeyMessage(null), 5000)
+      }
+    } catch (error) {
+      setKeyMessage({
+        type: 'error',
+        text: `Failed to import key: ${String(error)}`
+      })
+      setTimeout(() => setKeyMessage(null), 5000)
+    }
+  }
+
   return (
     <div className="flex-1 h-full bg-white overflow-y-auto">
       <div className="max-w-2xl mx-auto p-10">
@@ -384,6 +458,54 @@ function SettingsView(): React.JSX.Element {
                 <p className="text-xs text-zinc-500">Click to record the key you want to hold.</p>
               </div>
             )}
+          </section>
+
+          {/* Encryption Key Backup */}
+          <section className="space-y-6">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2">
+              Encryption Key Backup
+            </h2>
+            <div className="space-y-4">
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-purple-900 mb-2 text-sm">What is this?</h4>
+                <p className="text-sm text-purple-800 mb-3">
+                  All your data (history, notes, and settings) is automatically encrypted on your device.
+                  Export your encryption key to recover your data if you change computers or reinstall the OS.
+                </p>
+                <p className="text-sm font-semibold text-purple-900">
+                  ⚠️ Keep this key safe and secure - anyone with this key can decrypt your data!
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleExportKey}
+                  className="py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors text-sm"
+                >
+                  Export Encryption Key
+                </button>
+                <button
+                  onClick={handleImportKey}
+                  className="py-2.5 px-4 bg-zinc-600 hover:bg-zinc-700 text-white font-medium rounded-lg transition-colors text-sm"
+                >
+                  Import Encryption Key
+                </button>
+              </div>
+
+              {keyMessage && (
+                <div
+                  className={`p-3 rounded-lg text-sm ${
+                    keyMessage.type === 'success'
+                      ? 'bg-green-50 text-green-800 border border-green-200'
+                      : keyMessage.type === 'error'
+                        ? 'bg-red-50 text-red-800 border border-red-200'
+                        : 'bg-blue-50 text-blue-800 border border-blue-200'
+                  }`}
+                >
+                  {keyMessage.text}
+                </div>
+              )}
+            </div>
           </section>
         </div>
       </div>

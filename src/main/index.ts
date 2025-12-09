@@ -17,6 +17,7 @@ import { loadHistory, getStats, deleteHistoryItem } from './history'
 import { loadNotes, addNote, deleteNote, updateNote } from './notes'
 import icon from '../../resources/icon.png?asset'
 import { processAudio, injectText, Settings } from './openai'
+import { initializeEncryption, encryptData, decryptData, detectStorageVersion, exportMasterKey, importMasterKey } from './encryption'
 import 'dotenv/config'
 
 let mainWindow: BrowserWindow | null = null
@@ -117,6 +118,14 @@ function ensureWindowMatchesDisplay(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  // Initialize encryption system FIRST
+  try {
+    await initializeEncryption()
+    console.log('[App] Encryption initialized successfully')
+  } catch (error) {
+    console.error('[App] Failed to initialize encryption:', error)
+  }
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -272,10 +281,26 @@ app.whenReady().then(async () => {
     try {
       // Load local settings first
       if (fs.existsSync(settingsPath)) {
-        const data = fs.readFileSync(settingsPath, 'utf-8')
-        const loaded = JSON.parse(data)
-        settings = { ...settings, ...loaded }
-        console.log('[Settings] Loaded local settings:', settings)
+        const raw = fs.readFileSync(settingsPath, 'utf-8')
+        const parsed = JSON.parse(raw)
+
+        // Detect storage format version
+        const version = detectStorageVersion(parsed)
+
+        if (version === 1) {
+          // Old plaintext format - load directly, will encrypt on next save
+          console.log('[Settings] Detected plaintext format, will migrate on next save')
+          settings = { ...settings, ...parsed }
+        } else {
+          // Version 2 - encrypted format
+          try {
+            const decrypted = await decryptData(parsed.data)
+            settings = { ...settings, ...decrypted }
+            console.log('[Settings] Loaded encrypted settings')
+          } catch (error) {
+            console.error('[Settings] Decryption failed, using defaults:', error)
+          }
+        }
       }
 
       // Sync login item settings
@@ -283,16 +308,21 @@ app.whenReady().then(async () => {
         app.setLoginItemSettings({ openAtLogin: settings.startOnLogin })
       }
     } catch (error) {
-      console.error('Failed to load settings:', error)
+      console.error('[Settings] Failed to load settings:', error)
     }
   }
 
   const saveSettings = async () => {
     try {
-      // Save locally first
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+      // Encrypt the settings
+      const encrypted = await encryptData(settings)
+      const wrapper = { version: 2 as const, data: encrypted }
+
+      // Write encrypted data
+      fs.writeFileSync(settingsPath, JSON.stringify(wrapper, null, 2))
+      console.log('[Settings] Saved encrypted settings')
     } catch (error) {
-      console.error('Failed to save settings:', error)
+      console.error('[Settings] Failed to save settings:', error)
     }
   }
 
@@ -697,6 +727,31 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('update-note', (_, id, content) => {
     updateNote(id, content)
+  })
+
+  // Encryption Key Export/Import Handlers
+  ipcMain.handle('export-encryption-key', async () => {
+    try {
+      const key = await exportMasterKey()
+      return { success: true, key }
+    } catch (error) {
+      console.error('[IPC] Failed to export key:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('import-encryption-key', async (_, keyString: string) => {
+    try {
+      const success = await importMasterKey(keyString)
+      if (success) {
+        return { success: true }
+      } else {
+        return { success: false, error: 'Invalid encryption key' }
+      }
+    } catch (error) {
+      console.error('[IPC] Failed to import key:', error)
+      return { success: false, error: String(error) }
+    }
   })
 
   // IPC Handlers for Settings
