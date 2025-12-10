@@ -14,43 +14,61 @@ public class TranscriptionService {
         fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
-        // Create a task to initialize WhisperKit
-        let initTask = Task {
-            return try await WhisperKit(
+        // If progress callback provided, track progress updates
+        if let callback = progressCallback {
+            // Report initial progress
+            callback(0.0)
+
+            // Use an actor to safely share state between tasks
+            actor ProgressTracker {
+                var isComplete = false
+
+                func markComplete() {
+                    isComplete = true
+                }
+
+                func checkComplete() -> Bool {
+                    return isComplete
+                }
+            }
+
+            let tracker = ProgressTracker()
+
+            // Start progress polling task
+            let progressTask = Task {
+                var lastProgress = 0.0
+                while await !tracker.checkComplete() {
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+
+                    // Simulate progress (since WhisperKit doesn't expose real download progress)
+                    lastProgress = min(lastProgress + 0.05, 0.95)
+                    callback(lastProgress)
+                }
+            }
+
+            // Initialize WhisperKit
+            whisperKit = try await WhisperKit(
+                model: modelName,
+                verbose: false,
+                logLevel: .error,
+                prewarm: true
+            )
+
+            // Mark complete and wait for progress task to finish
+            await tracker.markComplete()
+            await progressTask.value
+
+            // Report 100% complete
+            callback(1.0)
+        } else {
+            // No progress tracking - just initialize
+            whisperKit = try await WhisperKit(
                 model: modelName,
                 verbose: false,
                 logLevel: .error,
                 prewarm: true
             )
         }
-
-        // If progress callback provided, poll for progress updates
-        if let callback = progressCallback {
-            Task {
-                // Report initial progress
-                callback(0.0)
-
-                var lastProgress = 0.0
-                while !initTask.isCancelled {
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
-
-                    if Task.isCancelled {
-                        break
-                    }
-
-                    // Simulate progress (since WhisperKit doesn't expose real download progress)
-                    // Progress increases gradually until complete
-                    lastProgress = min(lastProgress + 0.05, 0.95)
-                    callback(lastProgress)
-                }
-            }
-        }
-
-        // Wait for initialization to complete
-        whisperKit = try await initTask.value
-
-        // Report 100% complete
-        progressCallback?(1.0)
 
         fputs("[WhisperKit] Initialized successfully\n", stderr)
     }
