@@ -120,15 +120,7 @@ async function startDaemon(modelName: string): Promise<void> {
               // Model is loading from cache - just log, don't show UI
               console.log(`[WhisperDaemon] Loading cached model: ${result.model}`)
             } else if (result.status === 'ready') {
-              // Model loaded - emit completion to renderer
-              const mainWindow = (global as any).getMainWindow?.()
-              if (mainWindow) {
-                mainWindow.webContents.send('model-download-progress', {
-                  model: result.model,
-                  progress: 1, // Complete
-                  isLoading: false
-                })
-              }
+              // Model loaded - just set ready flag, don't show UI
               console.log('[WhisperDaemon] Model loaded and ready!')
               daemonReady = true
             } else if (result.audioFile && pendingRequests.has(result.audioFile)) {
