@@ -29,6 +29,10 @@ function SettingsView(): React.JSX.Element {
 
   const [isRecordingHoldKey, setIsRecordingHoldKey] = useState(false)
 
+  // Transcription mode state
+  const [transcriptionMode, setTranscriptionMode] = useState<'cloud' | 'local'>('cloud')
+  const [localModel, setLocalModel] = useState<string>('openai/whisper-base')
+
   // Helper function to update settings
   const updateSetting = (key: string, value: unknown): void => {
     window.electron.ipcRenderer.invoke('update-setting', key, value)
@@ -61,6 +65,8 @@ function SettingsView(): React.JSX.Element {
       if (settings.triggerMode) setTriggerMode(settings.triggerMode)
       if (settings.hotkey) setHotkey(settings.hotkey)
       if (settings.holdKey) setHoldKey(settings.holdKey)
+      if (settings.transcriptionMode) setTranscriptionMode(settings.transcriptionMode)
+      if (settings.localModel) setLocalModel(settings.localModel)
     })
 
     const handleKeyRecorded = (_: any, keycode: number) => {
@@ -458,6 +464,97 @@ function SettingsView(): React.JSX.Element {
                 <p className="text-xs text-zinc-500">Click to record the key you want to hold.</p>
               </div>
             )}
+          </section>
+
+          {/* Transcription Mode */}
+          <section className="space-y-6">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2">
+              Transcription Mode
+            </h2>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="radio"
+                    className="mt-1 mr-3"
+                    value="cloud"
+                    checked={transcriptionMode === 'cloud'}
+                    onChange={(e) => {
+                      setTranscriptionMode('cloud')
+                      updateSetting('transcriptionMode', 'cloud')
+                    }}
+                  />
+                  <div>
+                    <div className="font-medium text-zinc-900">Cloud Mode (Groq API)</div>
+                    <div className="text-sm text-zinc-500">
+                      Faster transcription, requires internet. Audio sent to Groq servers.
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="radio"
+                    className="mt-1 mr-3"
+                    value="local"
+                    checked={transcriptionMode === 'local'}
+                    onChange={(e) => {
+                      setTranscriptionMode('local')
+                      updateSetting('transcriptionMode', 'local')
+                    }}
+                  />
+                  <div>
+                    <div className="font-medium text-zinc-900">
+                      On-Device Mode (WhisperKit)
+                    </div>
+                    <div className="text-sm text-zinc-500">
+                      Private transcription, works offline. Audio never leaves your device.
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {transcriptionMode === 'local' && (
+                <div className="mt-4 pl-6 space-y-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-zinc-700">Model Size:</span>
+                    <select
+                      className="mt-1 block w-full px-3 py-2 bg-white border border-zinc-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      value={localModel}
+                      onChange={(e) => {
+                        setLocalModel(e.target.value)
+                        updateSetting('localModel', e.target.value)
+                      }}
+                    >
+                      <option value="openai/whisper-tiny">Tiny (40MB) - Fastest</option>
+                      <option value="openai/whisper-tiny.en">
+                        Tiny English-only (40MB) - Fastest
+                      </option>
+                      <option value="openai/whisper-base">Base (80MB) - Recommended</option>
+                      <option value="openai/whisper-base.en">
+                        Base English-only (80MB) - Recommended
+                      </option>
+                      <option value="openai/whisper-small">
+                        Small (250MB) - Better accuracy
+                      </option>
+                      <option value="openai/whisper-small.en">
+                        Small English-only (250MB) - Better accuracy
+                      </option>
+                      <option value="openai/whisper-medium">
+                        Medium (800MB) - High accuracy
+                      </option>
+                      <option value="openai/whisper-medium.en">
+                        Medium English-only (800MB) - High accuracy
+                      </option>
+                    </select>
+                  </label>
+                  <div className="text-xs text-zinc-500">
+                    Note: Models will be downloaded automatically on first use. Larger models
+                    provide better accuracy but take longer to process.
+                  </div>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Encryption Key Backup */}

@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import { exec } from 'child_process'
 import { clipboard } from 'electron'
 import dotenv from 'dotenv'
+import { transcribeLocal } from './whisper-local'
 
 // Explicitly load .env from project root
 const envPath = path.join(process.cwd(), '.env')
@@ -32,6 +33,8 @@ export interface Settings {
     language: string
     customInstructions: string
     dictionaryEntries?: DictionaryEntry[]
+    transcriptionMode?: 'cloud' | 'local'
+    localModel?: string
 }
 
 /**
@@ -75,16 +78,47 @@ export async function processAudio(buffer: ArrayBuffer, settings: Settings): Pro
         const tempFilePath = path.join(os.tmpdir(), `wispr_recording_${Date.now()}.webm`)
         fs.writeFileSync(tempFilePath, Buffer.from(buffer))
 
-        // 2. Transcribe with Groq Whisper (Turbo)
-        console.time('Groq Transcription')
-        const transcription = await getOpenAI().audio.transcriptions.create({
-            file: fs.createReadStream(tempFilePath),
-            model: 'whisper-large-v3-turbo', // Ultra fast model
-            language: settings.language === 'auto' ? undefined : settings.language
-        })
-        console.timeEnd('Groq Transcription')
+        let rawText: string
 
-        const rawText = transcription.text.trim()
+        // 2. Transcribe based on mode (cloud or local)
+        const transcriptionMode = settings.transcriptionMode || 'cloud'
+
+        if (transcriptionMode === 'local') {
+            // Local transcription with WhisperKit
+            console.log('[Transcription] Using local WhisperKit')
+            console.time('Local Transcription (WhisperKit)')
+
+            try {
+                rawText = await transcribeLocal(tempFilePath, {
+                    modelName: settings.localModel || 'openai/whisper-base',
+                    language: settings.language === 'auto' ? undefined : settings.language
+                })
+                console.timeEnd('Local Transcription (WhisperKit)')
+            } catch (error) {
+                console.error('[Transcription] Local transcription failed, falling back to cloud:', error)
+                // Fallback to cloud if local fails
+                console.time('Groq Transcription (Fallback)')
+                const transcription = await getOpenAI().audio.transcriptions.create({
+                    file: fs.createReadStream(tempFilePath),
+                    model: 'whisper-large-v3-turbo',
+                    language: settings.language === 'auto' ? undefined : settings.language
+                })
+                console.timeEnd('Groq Transcription (Fallback)')
+                rawText = transcription.text.trim()
+            }
+        } else {
+            // Cloud transcription with Groq
+            console.log('[Transcription] Using cloud API (Groq)')
+            console.time('Groq Transcription')
+            const transcription = await getOpenAI().audio.transcriptions.create({
+                file: fs.createReadStream(tempFilePath),
+                model: 'whisper-large-v3-turbo', // Ultra fast model
+                language: settings.language === 'auto' ? undefined : settings.language
+            })
+            console.timeEnd('Groq Transcription')
+            rawText = transcription.text.trim()
+        }
+
         console.log('Raw Transcription:', rawText)
 
         // Filter Hallucinations
