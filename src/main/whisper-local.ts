@@ -75,8 +75,28 @@ export async function transcribeLocal(
     console.log('[WhisperLocal] Binary path:', whisperBinary)
     console.log('[WhisperLocal] Binary exists:', fs.existsSync(whisperBinary))
 
-    // Build command
-    const args = ['transcribe', audioFilePath, modelName]
+    // Convert WebM to WAV format (WhisperKit needs AVFoundation-compatible format)
+    console.log('[WhisperLocal] Converting WebM to WAV for WhisperKit compatibility...')
+    const wavPath = audioFilePath.replace('.webm', '.wav')
+
+    try {
+      const { exec } = require('child_process')
+      const { promisify } = require('util')
+      const execAsync = promisify(exec)
+
+      // Use ffmpeg to convert WebM to WAV (16kHz mono, 16-bit PCM)
+      await execAsync(
+        `ffmpeg -i "${audioFilePath}" -ar 16000 -ac 1 -sample_fmt s16 "${wavPath}" -y`,
+        { timeout: 30000 }
+      )
+      console.log('[WhisperLocal] Audio converted to WAV successfully')
+    } catch (convError) {
+      console.error('[WhisperLocal] Audio conversion failed:', convError)
+      throw new Error('Failed to convert audio to compatible format. Make sure ffmpeg is installed.')
+    }
+
+    // Build command with WAV file
+    const args = ['transcribe', wavPath, modelName]
     if (language) {
       args.push(language)
     }
@@ -98,6 +118,16 @@ export async function transcribeLocal(
 
     // Parse JSON result from stdout
     const result: TranscriptionResult = JSON.parse(stdout)
+
+    // Clean up the WAV file
+    try {
+      if (fs.existsSync(wavPath)) {
+        fs.unlinkSync(wavPath)
+        console.log('[WhisperLocal] Cleaned up temporary WAV file')
+      }
+    } catch (cleanupError) {
+      console.warn('[WhisperLocal] Failed to clean up WAV file:', cleanupError)
+    }
 
     if (result.success && result.transcription) {
       console.log('[WhisperLocal] Transcription successful')
