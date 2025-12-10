@@ -487,7 +487,23 @@ app.whenReady().then(async () => {
       }
     ]
 
+    // Privacy Mode indicator
+    const privacyMode = settings.transcriptionMode === 'local'
+    const privacyIcon = privacyMode ? '🔒' : '☁️'
+    const privacyLabel = privacyMode ? 'Privacy Mode (Local AI)' : 'Cloud Mode'
+
     const contextMenu = Menu.buildFromTemplate([
+      {
+        label: `${privacyIcon} ${privacyLabel}`,
+        type: 'checkbox',
+        checked: privacyMode,
+        click: () => {
+          settings.transcriptionMode = privacyMode ? 'cloud' : 'local'
+          saveSettings()
+          buildTrayMenu() // Rebuild to update checkmark and label
+        }
+      },
+      { type: 'separator' },
       {
         label: 'Shortcuts',
         submenu: shortcutsSubmenu
@@ -777,6 +793,12 @@ app.whenReady().then(async () => {
     if (key === 'holdKey') {
       buildTrayMenu()
     }
+
+    // Update tray menu when transcription mode changes
+    if (key === 'transcriptionMode') {
+      buildTrayMenu()
+    }
+
     // triggerMode change no longer affects shortcut registration
     // Both Toggle shortcut and PTT key are always active
   })
