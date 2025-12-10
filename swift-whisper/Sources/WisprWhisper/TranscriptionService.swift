@@ -14,10 +14,27 @@ public class TranscriptionService {
         fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
-        // Check if model is already cached
+        // Check if this specific model is already cached
+        // WhisperKit stores models in ~/Library/Caches/huggingface/hub/models--argmaxinc--whisperkit-coreml/
         let modelsCacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("huggingface/hub")
-        let isModelCached = FileManager.default.fileExists(atPath: modelsCacheDir.path)
+            .appendingPathComponent("huggingface/hub/models--argmaxinc--whisperkit-coreml")
+
+        // Check if the specific model variant folder exists (e.g., snapshots/*/openai_whisper-base)
+        var isModelCached = false
+        if FileManager.default.fileExists(atPath: modelsCacheDir.path) {
+            // Check for snapshots directory and model-specific files
+            let snapshotsDir = modelsCacheDir.appendingPathComponent("snapshots")
+            if let snapshots = try? FileManager.default.contentsOfDirectory(atPath: snapshotsDir.path) {
+                for snapshot in snapshots {
+                    let modelPath = snapshotsDir.appendingPathComponent(snapshot)
+                        .appendingPathComponent("openai_whisper-\(modelName)")
+                    if FileManager.default.fileExists(atPath: modelPath.path) {
+                        isModelCached = true
+                        break
+                    }
+                }
+            }
+        }
 
         // Only show progress if we have a callback AND model needs to be downloaded
         if let callback = progressCallback, !isModelCached {
