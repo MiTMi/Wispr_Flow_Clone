@@ -14,36 +14,14 @@ public class TranscriptionService {
         fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
-        // Check if this specific model is already cached
-        // WhisperKit stores models in ~/Library/Caches/huggingface/hub/models--argmaxinc--whisperkit-coreml/
-        let modelsCacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("huggingface/hub/models--argmaxinc--whisperkit-coreml")
+        let startTime = Date()
 
-        // Check if the specific model variant folder exists (e.g., snapshots/*/openai_whisper-base)
-        var isModelCached = false
-        if FileManager.default.fileExists(atPath: modelsCacheDir.path) {
-            // Check for snapshots directory and model-specific files
-            let snapshotsDir = modelsCacheDir.appendingPathComponent("snapshots")
-            if let snapshots = try? FileManager.default.contentsOfDirectory(atPath: snapshotsDir.path) {
-                for snapshot in snapshots {
-                    let modelPath = snapshotsDir.appendingPathComponent(snapshot)
-                        .appendingPathComponent("openai_whisper-\(modelName)")
-                    if FileManager.default.fileExists(atPath: modelPath.path) {
-                        isModelCached = true
-                        break
-                    }
-                }
-            }
-        }
-
-        // Only show progress if we have a callback AND model needs to be downloaded
-        if let callback = progressCallback, !isModelCached {
-            // Report initial progress
-            callback(0.0)
-
+        // Show progress if callback provided
+        if let callback = progressCallback {
             // Use an actor to safely share state between tasks
             actor ProgressTracker {
                 var isComplete = false
+                var shouldShowProgress = false
 
                 func markComplete() {
                     isComplete = true
@@ -52,6 +30,14 @@ public class TranscriptionService {
                 func checkComplete() -> Bool {
                     return isComplete
                 }
+
+                func enableProgress() {
+                    shouldShowProgress = true
+                }
+
+                func shouldShow() -> Bool {
+                    return shouldShowProgress
+                }
             }
 
             let tracker = ProgressTracker()
@@ -59,12 +45,31 @@ public class TranscriptionService {
             // Start progress polling task
             let progressTask = Task {
                 var lastProgress = 0.0
-                while await !tracker.checkComplete() {
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+                var hasShownProgress = false
 
-                    // Simulate progress (since WhisperKit doesn't expose real download progress)
-                    lastProgress = min(lastProgress + 0.05, 0.95)
+                // Wait 5 seconds before showing any progress
+                // Cached models typically load in 3-4 seconds, downloads take 20-40 seconds
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+
+                while await !tracker.checkComplete() {
+                    // Enable progress display after delay
+                    if !hasShownProgress {
+                        await tracker.enableProgress()
+                        hasShownProgress = true
+                        callback(0.0) // Start at 0%
+                    }
+
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+
+                    // Slower progress simulation to better match actual loading time
+                    // Increment by 2% every 500ms = ~25 seconds to reach 95%
+                    lastProgress = min(lastProgress + 0.02, 0.95)
                     callback(lastProgress)
+                }
+
+                // Only show completion if we showed progress
+                if await tracker.shouldShow() {
+                    callback(1.0)
                 }
             }
 
@@ -80,8 +85,8 @@ public class TranscriptionService {
             await tracker.markComplete()
             await progressTask.value
 
-            // Report 100% complete
-            callback(1.0)
+            let loadTime = Date().timeIntervalSince(startTime)
+            fputs("[WhisperKit] Model loaded in \(String(format: "%.2f", loadTime))s\n", stderr)
         } else {
             // No progress tracking - just initialize
             whisperKit = try await WhisperKit(

@@ -100,8 +100,16 @@ struct WhisperCLI {
 
         let service = TranscriptionService()
 
-        // Initialize without progress tracking (silent loading)
-        try await service.initialize(modelName: modelName)
+        // Initialize with progress tracking for first-time downloads
+        try await service.initialize(modelName: modelName) { progress in
+            // Emit progress updates to TypeScript
+            let progressUpdate: [String: Any] = [
+                "status": "downloading",
+                "model": modelName,
+                "progress": progress
+            ]
+            printJSON(progressUpdate)
+        }
 
         print("[WhisperDaemon] Model loaded and ready. Waiting for transcription requests...", to: &standardError)
 
