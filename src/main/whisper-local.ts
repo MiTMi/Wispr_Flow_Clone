@@ -51,6 +51,9 @@ export interface TranscriptionResult {
   audioFile?: string
   error?: string
   status?: string
+  progress?: number
+  downloadedBytes?: number
+  totalBytes?: number
 }
 
 /**
@@ -99,7 +102,29 @@ async function startDaemon(modelName: string): Promise<void> {
 
             console.log('[WhisperDaemon] Received:', JSON.stringify(result))
 
-            if (result.status === 'ready') {
+            if (result.status === 'loading') {
+              // Model is loading/downloading - emit to renderer
+              console.log(`[WhisperDaemon] Loading model: ${result.model}`)
+
+              // Emit loading event to renderer
+              const mainWindow = (global as any).getMainWindow?.()
+              if (mainWindow) {
+                mainWindow.webContents.send('model-download-progress', {
+                  model: result.model,
+                  progress: 0, // Indeterminate progress
+                  isLoading: true
+                })
+              }
+            } else if (result.status === 'ready') {
+              // Model loaded - emit completion to renderer
+              const mainWindow = (global as any).getMainWindow?.()
+              if (mainWindow) {
+                mainWindow.webContents.send('model-download-progress', {
+                  model: result.model,
+                  progress: 1, // Complete
+                  isLoading: false
+                })
+              }
               console.log('[WhisperDaemon] Model loaded and ready!')
               daemonReady = true
             } else if (result.audioFile && pendingRequests.has(result.audioFile)) {

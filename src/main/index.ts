@@ -118,6 +118,9 @@ function ensureWindowMatchesDisplay(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  // Make mainWindow accessible globally for whisper-local.ts
+  ;(global as any).getMainWindow = (): BrowserWindow | null => mainWindow
+
   // Initialize encryption system FIRST
   try {
     await initializeEncryption()

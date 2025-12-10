@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import ExamplesWindow from './components/ExamplesWindow'
 
 import Dashboard from './components/Dashboard'
+import ModelDownloadProgress from './components/ModelDownloadProgress'
 
 // Helper to get initial view from hash (runs synchronously before first render)
 const getInitialView = (): string => {
@@ -247,8 +248,10 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <div className="h-screen w-screen flex items-end justify-center pb-2 bg-transparent select-none overflow-hidden">
-      <div className="relative" ref={containerRef}>
+    <>
+      <ModelDownloadProgress />
+      <div className="h-screen w-screen flex items-end justify-center pb-2 bg-transparent select-none overflow-hidden">
+        <div className="relative" ref={containerRef}>
         {(isListening || isProcessing) ? (
           // Active recording/processing pill
           <div
@@ -327,6 +330,7 @@ function App(): React.JSX.Element {
         )}
       </div>
     </div>
+    </>
   )
 }
 

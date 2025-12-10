@@ -546,6 +546,9 @@ function SettingsView(): React.JSX.Element {
                       <option value="medium.en">
                         Medium English-only (800MB) - High accuracy
                       </option>
+                      <option value="large-v3">
+                        Large v3 (1500MB) - Best accuracy
+                      </option>
                     </select>
                   </label>
                   <div className="text-xs text-zinc-500">
