@@ -8,7 +8,7 @@ struct WhisperCLI {
 
         // Usage: whisper-cli <command> [args]
         guard args.count >= 2 else {
-            printError("Usage: whisper-cli <command> [args]\nCommands:\n  transcribe <audio-file> <model-name> [language]\n  list-models")
+            printError("Usage: whisper-cli <command> [args]\nCommands:\n  transcribe <audio-file> <model-name> [language]\n  list-models\n  daemon <model-name> (persistent mode)")
             exit(1)
         }
 
@@ -21,6 +21,9 @@ struct WhisperCLI {
 
             case "list-models":
                 handleListModels()
+
+            case "daemon":
+                try await handleDaemon(args: Array(args.dropFirst(2)))
 
             default:
                 printError("Unknown command: \(command)")
@@ -84,13 +87,75 @@ struct WhisperCLI {
         printJSON(result)
     }
 
+    static func handleDaemon(args: [String]) async throws {
+        guard args.count >= 1 else {
+            printError("Usage: whisper-cli daemon <model-name>")
+            exit(1)
+        }
+
+        let modelName = args[0]
+
+        // Initialize once and keep loaded
+        print("[WhisperDaemon] Starting daemon mode with model: \(modelName)", to: &standardError)
+        let service = TranscriptionService()
+        try await service.initialize(modelName: modelName)
+        print("[WhisperDaemon] Model loaded and ready. Waiting for transcription requests...", to: &standardError)
+
+        // Print ready signal to stdout
+        printJSON(["status": "ready", "model": modelName])
+
+        // Read from stdin line by line
+        while let line = readLine() {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmed == "quit" {
+                print("[WhisperDaemon] Received quit command, exiting...", to: &standardError)
+                break
+            }
+
+            // Parse JSON request: {"audioFile": "path", "language": "en"}
+            guard let data = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+                  let audioFile = json["audioFile"] else {
+                printError("Invalid request format. Expected JSON: {\"audioFile\": \"path\", \"language\": \"en\"}")
+                continue
+            }
+
+            let language = json["language"]
+
+            do {
+                let transcription = try await service.transcribe(
+                    audioFilePath: audioFile,
+                    language: language
+                )
+
+                let result: [String: Any] = [
+                    "success": true,
+                    "transcription": transcription,
+                    "audioFile": audioFile
+                ]
+                printJSON(result)
+            } catch {
+                let errorResult: [String: Any] = [
+                    "success": false,
+                    "error": error.localizedDescription
+                ]
+                printJSON(errorResult)
+            }
+        }
+
+        print("[WhisperDaemon] Daemon stopped", to: &standardError)
+    }
+
     // MARK: - Helper Functions
 
     static func printJSON(_ object: [String: Any]) {
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: object, options: .prettyPrinted)
+            // Use compact JSON (no pretty printing) for easier parsing
+            let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
             if let jsonString = String(data: jsonData, encoding: .utf8) {
                 print(jsonString)
+                fflush(stdout) // Ensure immediate output
             }
         } catch {
             printError("Failed to encode JSON: \(error)")

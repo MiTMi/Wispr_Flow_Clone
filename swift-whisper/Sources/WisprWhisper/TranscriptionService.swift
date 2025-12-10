@@ -11,17 +11,22 @@ public class TranscriptionService {
 
     /// Initialize WhisperKit with specified model
     public func initialize(modelName: String = "openai/whisper-base") async throws {
-        print("[WhisperKit] Initializing with model: \(modelName)")
+        fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
         // Initialize WhisperKit with the model
+        // Performance optimizations:
+        // - verbose: false (reduce overhead from logging)
+        // - logLevel: .error (only show errors, not debug info)
+        // - prewarm: true (warm up CoreML for faster first inference)
         whisperKit = try await WhisperKit(
             model: modelName,
-            verbose: true,
-            logLevel: .debug
+            verbose: false,
+            logLevel: .error,
+            prewarm: true
         )
 
-        print("[WhisperKit] Initialized successfully")
+        fputs("[WhisperKit] Initialized successfully\n", stderr)
     }
 
     /// Transcribe audio file
@@ -34,7 +39,7 @@ public class TranscriptionService {
             )
         }
 
-        print("[WhisperKit] Transcribing audio file: \(audioFilePath)")
+        fputs("[WhisperKit] Transcribing audio file: \(audioFilePath)\n", stderr)
 
         // Check if file exists
         guard FileManager.default.fileExists(atPath: audioFilePath) else {
@@ -45,8 +50,15 @@ public class TranscriptionService {
             )
         }
 
-        // Transcribe with language setting
-        let options = DecodingOptions(language: language)
+        // Transcribe with optimized settings for speed
+        // Performance optimizations:
+        // - temperatureFallbackCount: 1 (reduce temperature retries for faster processing)
+        // - skipSpecialTokens: true (faster decoding)
+        let options = DecodingOptions(
+            language: language,
+            temperatureFallbackCount: 1,
+            skipSpecialTokens: true
+        )
         let result = try await whisperKit.transcribe(
             audioPath: audioFilePath,
             decodeOptions: options
@@ -71,7 +83,7 @@ public class TranscriptionService {
 
         transcription = transcription.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
-        print("[WhisperKit] Transcription complete: \(transcription)")
+        fputs("[WhisperKit] Transcription complete: \(transcription)\n", stderr)
         return transcription
     }
 

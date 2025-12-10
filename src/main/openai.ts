@@ -148,9 +148,25 @@ export async function processAudio(buffer: ArrayBuffer, settings: Settings): Pro
             return ''
         }
 
-        // 3. Format with Groq Llama 3
+        // 3. Format with Groq Llama 3 (ONLY for cloud mode)
         let formattedText = rawText
 
+        // Skip formatting entirely for local AI mode - return raw transcription
+        if (transcriptionMode === 'local') {
+            console.log('[Local AI] Skipping cloud-based formatting - returning raw transcription')
+            console.log('Final Text:', formattedText)
+
+            // Save to History
+            const durationMs = (buffer.byteLength / 32000) * 1000
+            addHistoryEntry(formattedText, durationMs)
+
+            // Cleanup - secure deletion
+            secureDelete(tempFilePath)
+
+            return formattedText
+        }
+
+        // Cloud mode formatting
         if (settings.style !== 'verbatim') {
             console.time('Groq Formatting')
 

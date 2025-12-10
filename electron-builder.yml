@@ -9,7 +9,7 @@ files:
   - 'node_modules/**/*'
   - 'resources/**'
   - 'native/cloudkit/build/Release/**'
-  - 'swift-whisper/.build/release/whisper-cli'
+  - 'swift-whisper/.build/arm64-apple-macosx/release/whisper-cli'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
@@ -19,7 +19,7 @@ files:
 asarUnpack:
   - resources/**
   - 'native/cloudkit/build/Release/**'
-  - 'swift-whisper/.build/release/whisper-cli'
+  - 'swift-whisper/.build/arm64-apple-macosx/release/whisper-cli'
 win:
   executableName: wispr-flow-clone
 nsis:
