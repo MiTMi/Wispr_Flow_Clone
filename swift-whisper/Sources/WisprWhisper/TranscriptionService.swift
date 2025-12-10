@@ -78,30 +78,30 @@ public class TranscriptionService {
     /// List available models
     public static func listAvailableModels() -> [String] {
         return [
-            "openai/whisper-tiny",
-            "openai/whisper-tiny.en",
-            "openai/whisper-base",
-            "openai/whisper-base.en",
-            "openai/whisper-small",
-            "openai/whisper-small.en",
-            "openai/whisper-medium",
-            "openai/whisper-medium.en",
-            "openai/whisper-large-v3"
+            "tiny",
+            "tiny.en",
+            "base",
+            "base.en",
+            "small",
+            "small.en",
+            "medium",
+            "medium.en",
+            "large-v3"
         ]
     }
 
     /// Get model size information
     public static func getModelInfo(modelName: String) -> [String: Any] {
         let modelSizes: [String: Int] = [
-            "openai/whisper-tiny": 40,
-            "openai/whisper-tiny.en": 40,
-            "openai/whisper-base": 80,
-            "openai/whisper-base.en": 80,
-            "openai/whisper-small": 250,
-            "openai/whisper-small.en": 250,
-            "openai/whisper-medium": 800,
-            "openai/whisper-medium.en": 800,
-            "openai/whisper-large-v3": 1500
+            "tiny": 40,
+            "tiny.en": 40,
+            "base": 80,
+            "base.en": 80,
+            "small": 250,
+            "small.en": 250,
+            "medium": 800,
+            "medium.en": 800,
+            "large-v3": 1500
         ]
 
         return [

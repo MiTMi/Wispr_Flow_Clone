@@ -31,7 +31,7 @@ function SettingsView(): React.JSX.Element {
 
   // Transcription mode state
   const [transcriptionMode, setTranscriptionMode] = useState<'cloud' | 'local'>('cloud')
-  const [localModel, setLocalModel] = useState<string>('openai/whisper-base')
+  const [localModel, setLocalModel] = useState<string>('base')
 
   // Helper function to update settings
   const updateSetting = (key: string, value: unknown): void => {
@@ -526,24 +526,24 @@ function SettingsView(): React.JSX.Element {
                         updateSetting('localModel', e.target.value)
                       }}
                     >
-                      <option value="openai/whisper-tiny">Tiny (40MB) - Fastest</option>
-                      <option value="openai/whisper-tiny.en">
+                      <option value="tiny">Tiny (40MB) - Fastest</option>
+                      <option value="tiny.en">
                         Tiny English-only (40MB) - Fastest
                       </option>
-                      <option value="openai/whisper-base">Base (80MB) - Recommended</option>
-                      <option value="openai/whisper-base.en">
+                      <option value="base">Base (80MB) - Recommended</option>
+                      <option value="base.en">
                         Base English-only (80MB) - Recommended
                       </option>
-                      <option value="openai/whisper-small">
+                      <option value="small">
                         Small (250MB) - Better accuracy
                       </option>
-                      <option value="openai/whisper-small.en">
+                      <option value="small.en">
                         Small English-only (250MB) - Better accuracy
                       </option>
-                      <option value="openai/whisper-medium">
+                      <option value="medium">
                         Medium (800MB) - High accuracy
                       </option>
-                      <option value="openai/whisper-medium.en">
+                      <option value="medium.en">
                         Medium English-only (800MB) - High accuracy
                       </option>
                     </select>

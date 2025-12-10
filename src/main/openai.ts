@@ -90,12 +90,15 @@ export async function processAudio(buffer: ArrayBuffer, settings: Settings): Pro
 
             try {
                 rawText = await transcribeLocal(tempFilePath, {
-                    modelName: settings.localModel || 'openai/whisper-base',
+                    modelName: settings.localModel || 'base',
                     language: settings.language === 'auto' ? undefined : settings.language
                 })
                 console.timeEnd('Local Transcription (WhisperKit)')
             } catch (error) {
-                console.error('[Transcription] Local transcription failed, falling back to cloud:', error)
+                console.error('[Transcription] ❌ LOCAL TRANSCRIPTION FAILED ❌')
+                console.error('[Transcription] Error details:', error)
+                console.error('[Transcription] Error message:', error instanceof Error ? error.message : String(error))
+                console.error('[Transcription] Falling back to cloud (Groq)...')
                 // Fallback to cloud if local fails
                 console.time('Groq Transcription (Fallback)')
                 const transcription = await getOpenAI().audio.transcriptions.create({

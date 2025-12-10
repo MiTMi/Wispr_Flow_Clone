@@ -50,21 +50,30 @@ export async function transcribeLocal(
   options: LocalTranscriptionOptions = {}
 ): Promise<string> {
   const {
-    modelName = 'openai/whisper-base',
+    modelName = 'base',
     language
   } = options
 
-  console.log('[WhisperLocal] Transcribing with local WhisperKit')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('[WhisperLocal] 🎯 STARTING LOCAL TRANSCRIPTION')
   console.log('[WhisperLocal] Model:', modelName)
+  console.log('[WhisperLocal] Language:', language || 'auto-detect')
   console.log('[WhisperLocal] Audio file:', audioFilePath)
+  console.log('[WhisperLocal] File exists:', fs.existsSync(audioFilePath))
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
   // Verify audio file exists
   if (!fs.existsSync(audioFilePath)) {
-    throw new Error(`Audio file not found: ${audioFilePath}`)
+    const error = `Audio file not found: ${audioFilePath}`
+    console.error('[WhisperLocal] ❌ ERROR:', error)
+    throw new Error(error)
   }
 
   try {
+    console.log('[WhisperLocal] Getting whisper-cli path...')
     const whisperBinary = getWhisperCLIPath()
+    console.log('[WhisperLocal] Binary path:', whisperBinary)
+    console.log('[WhisperLocal] Binary exists:', fs.existsSync(whisperBinary))
 
     // Build command
     const args = ['transcribe', audioFilePath, modelName]
@@ -156,5 +165,5 @@ export function isWhisperKitAvailable(): boolean {
  */
 export function getRecommendedModel(): string {
   // For now, default to base model which works well on all Apple Silicon
-  return 'openai/whisper-base'
+  return 'base'
 }
