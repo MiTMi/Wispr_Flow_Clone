@@ -102,16 +102,17 @@ async function startDaemon(modelName: string): Promise<void> {
 
             console.log('[WhisperDaemon] Received:', JSON.stringify(result))
 
-            if (result.status === 'loading') {
+            if (result.status === 'loading' || result.status === 'downloading') {
               // Model is loading/downloading - emit to renderer
-              console.log(`[WhisperDaemon] Loading model: ${result.model}`)
+              const progressPercent = Math.round((result.progress || 0) * 100)
+              console.log(`[WhisperDaemon] Loading model: ${result.model} (${progressPercent}%)`)
 
               // Emit loading event to renderer
               const mainWindow = (global as any).getMainWindow?.()
               if (mainWindow) {
                 mainWindow.webContents.send('model-download-progress', {
                   model: result.model,
-                  progress: 0, // Indeterminate progress
+                  progress: result.progress || 0,
                   isLoading: true
                 })
               }

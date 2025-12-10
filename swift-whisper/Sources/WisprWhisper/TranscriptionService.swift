@@ -9,22 +9,48 @@ public class TranscriptionService {
 
     public init() {}
 
-    /// Initialize WhisperKit with specified model
-    public func initialize(modelName: String = "openai/whisper-base") async throws {
+    /// Initialize WhisperKit with specified model and progress callback
+    public func initialize(modelName: String = "openai/whisper-base", progressCallback: ((Double) -> Void)? = nil) async throws {
         fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
-        // Initialize WhisperKit with the model
-        // Performance optimizations:
-        // - verbose: false (reduce overhead from logging)
-        // - logLevel: .error (only show errors, not debug info)
-        // - prewarm: true (warm up CoreML for faster first inference)
-        whisperKit = try await WhisperKit(
-            model: modelName,
-            verbose: false,
-            logLevel: .error,
-            prewarm: true
-        )
+        // Create a task to initialize WhisperKit
+        let initTask = Task {
+            return try await WhisperKit(
+                model: modelName,
+                verbose: false,
+                logLevel: .error,
+                prewarm: true
+            )
+        }
+
+        // If progress callback provided, poll for progress updates
+        if let callback = progressCallback {
+            Task {
+                // Report initial progress
+                callback(0.0)
+
+                var lastProgress = 0.0
+                while !initTask.isCancelled {
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+
+                    if Task.isCancelled {
+                        break
+                    }
+
+                    // Simulate progress (since WhisperKit doesn't expose real download progress)
+                    // Progress increases gradually until complete
+                    lastProgress = min(lastProgress + 0.05, 0.95)
+                    callback(lastProgress)
+                }
+            }
+        }
+
+        // Wait for initialization to complete
+        whisperKit = try await initTask.value
+
+        // Report 100% complete
+        progressCallback?(1.0)
 
         fputs("[WhisperKit] Initialized successfully\n", stderr)
     }

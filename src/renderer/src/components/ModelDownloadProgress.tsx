@@ -112,11 +112,14 @@ function ModelDownloadProgress(): React.JSX.Element {
             </>
           )}
 
-          {/* Loading message for first-time download */}
+          {/* Loading message and percentage for first-time download */}
           {isLoading && (
-            <p className="text-xs text-zinc-500 italic">
-              First-time download in progress... This may take a few minutes.
-            </p>
+            <>
+              <p className="text-xs text-zinc-500 italic mb-1">
+                First-time download in progress...
+              </p>
+              <p className="text-sm font-semibold text-purple-600">{progressPercent}%</p>
+            </>
           )}
         </div>
       </div>
