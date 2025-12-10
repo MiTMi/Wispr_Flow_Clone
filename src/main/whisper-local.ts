@@ -102,12 +102,12 @@ async function startDaemon(modelName: string): Promise<void> {
 
             console.log('[WhisperDaemon] Received:', JSON.stringify(result))
 
-            if (result.status === 'loading' || result.status === 'downloading') {
-              // Model is loading/downloading - emit to renderer
+            if (result.status === 'downloading') {
+              // Model is downloading (first-time only) - emit to renderer
               const progressPercent = Math.round((result.progress || 0) * 100)
-              console.log(`[WhisperDaemon] Loading model: ${result.model} (${progressPercent}%)`)
+              console.log(`[WhisperDaemon] Downloading model: ${result.model} (${progressPercent}%)`)
 
-              // Emit loading event to renderer
+              // Emit download progress event to renderer
               const mainWindow = (global as any).getMainWindow?.()
               if (mainWindow) {
                 mainWindow.webContents.send('model-download-progress', {
@@ -116,6 +116,9 @@ async function startDaemon(modelName: string): Promise<void> {
                   isLoading: true
                 })
               }
+            } else if (result.status === 'loading') {
+              // Model is loading from cache - just log, don't show UI
+              console.log(`[WhisperDaemon] Loading cached model: ${result.model}`)
             } else if (result.status === 'ready') {
               // Model loaded - emit completion to renderer
               const mainWindow = (global as any).getMainWindow?.()

@@ -14,8 +14,13 @@ public class TranscriptionService {
         fputs("[WhisperKit] Initializing with model: \(modelName)\n", stderr)
         self.modelName = modelName
 
-        // If progress callback provided, track progress updates
-        if let callback = progressCallback {
+        // Check if model is already cached
+        let modelsCacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("huggingface/hub")
+        let isModelCached = FileManager.default.fileExists(atPath: modelsCacheDir.path)
+
+        // Only show progress if we have a callback AND model needs to be downloaded
+        if let callback = progressCallback, !isModelCached {
             // Report initial progress
             callback(0.0)
 
