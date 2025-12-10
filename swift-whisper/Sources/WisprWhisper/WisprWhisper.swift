@@ -98,20 +98,10 @@ struct WhisperCLI {
         // Initialize once and keep loaded
         print("[WhisperDaemon] Starting daemon mode with model: \(modelName)", to: &standardError)
 
-        // Print loading message for UI
-        printJSON(["status": "loading", "model": modelName, "progress": 0.0])
-
         let service = TranscriptionService()
 
-        // Initialize with progress tracking
-        try await service.initialize(modelName: modelName) { progress in
-            // Report progress to main process
-            printJSON([
-                "status": "downloading",
-                "model": modelName,
-                "progress": progress
-            ])
-        }
+        // Initialize without progress tracking (silent loading)
+        try await service.initialize(modelName: modelName)
 
         print("[WhisperDaemon] Model loaded and ready. Waiting for transcription requests...", to: &standardError)
 
